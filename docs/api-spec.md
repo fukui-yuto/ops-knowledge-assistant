@@ -87,7 +87,37 @@ uv run python generate.py "K8s Pod再起動手順" \
 - `-o` 省略時: stdoutにMarkdown出力
 - TODO項目が含まれる場合、stderrに警告を表示
 
-### 1.3 ヘルスチェック (healthcheck.py)
+### 1.3 リポジトリ同期CLI (repo_sync.py)
+
+外部Gitリポジトリの同期を手動で実行する。
+
+```bash
+# 全リポジトリを同期
+uv run python repo_sync.py
+
+# 特定リポジトリのみ同期
+uv run python repo_sync.py --name team-a
+
+# リポジトリ一覧を表示
+uv run python repo_sync.py --list
+```
+
+| オプション | 型 | 必須 | デフォルト | 説明 |
+|---|---|---|---|---|
+| `--name` | string | No | - | 特定リポジトリのみ同期する |
+| `--list` | flag | No | - | 登録済みリポジトリ一覧を表示 |
+
+**出力例**:
+```
+[repo] team-a: git pull...
+[repo] team-a: 3 files synced to knowledge/wiki/team-a/
+[repo] team-a: 2 files synced to knowledge/issue/team-a/
+[repo] team-b: git pull...
+[repo] team-b: 1 files synced to knowledge/wiki/team-b/
+[repo] 完了: 2 repos synced
+```
+
+### 1.4 ヘルスチェック (healthcheck.py)
 
 全コンポーネントの接続状態を一括確認する。
 

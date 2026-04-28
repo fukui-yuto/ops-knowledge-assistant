@@ -39,6 +39,11 @@ class Config:
     # Templates
     templates_path: str = os.getenv("TEMPLATES_PATH", "./data/templates")
 
+    # Repository Sync
+    repos_config_path: str = os.getenv("REPOS_CONFIG_PATH", "./data/repos.yaml")
+    repos_data_path: str = os.getenv("REPOS_DATA_PATH", "./data/repos")
+    repo_sync_interval: int = int(os.getenv("REPO_SYNC_INTERVAL", "3600"))
+
     @property
     def pg_dsn(self) -> str:
         return (

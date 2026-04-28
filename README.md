@@ -7,9 +7,10 @@ Web GUI またはコマンドライン、どちらからでも操作可能。
 
 ```
 1. テンプレート手順書を配置      → data/templates/
-2. 過去手順をフォルダに置く      → data/knowledge/wiki/ または issue/
-3. 自動同期（ファイル監視で即時取り込み、GUIアップロードも可）→ PostgreSQL + ChromaDB
-4. 手順書タイトルを入力          → LLMがテンプレ + 過去手順を参考に自動生成
+2. 過去手順をフォルダに置く      → data/knowledge/{wiki,issue}/{repo_or_local}/
+3. 外部Gitリポジトリを登録       → 定期pull + 自動配置（任意）
+4. 自動同期（ファイル監視で即時取り込み、GUIアップロードも可）→ PostgreSQL + ChromaDB
+5. 手順書タイトルを入力          → LLMがテンプレ + 過去手順を参考に自動生成
 ```
 
 ## クイックスタート
@@ -40,6 +41,7 @@ uv run pytest tests/ -v
 | ナレッジ管理 | ファイルのアップロード・閲覧・削除 |
 | テンプレート | テンプレートのアップロード・削除・プレビュー |
 | 検索 | ナレッジベースの横断検索 |
+| リポジトリ | 外部Gitリポジトリの登録・同期管理 |
 | 設定 | 接続状態確認・整合性チェック・DB初期化 |
 
 ## CLI で操作
@@ -48,10 +50,13 @@ uv run pytest tests/ -v
 
 ```bash
 # ファイルを置くだけ（GUI起動中はwatchdogが自動検知して同期）
-cp my_procedure.md data/knowledge/wiki/
+cp my_procedure.md data/knowledge/wiki/local/
 
 # 手動で同期する場合
 uv run python sync.py
+
+# 外部Gitリポジトリの同期
+uv run python repo_sync.py
 ```
 
 フォルダ構造から source_type を自動判定。
@@ -79,13 +84,17 @@ uv run python generate.py "K8s Pod再起動手順" \
 
 ```
 data/knowledge/
-├── wiki/                    # 運用手順書・ナレッジ記事
-│   ├── server_setup.md
-│   ├── backup_procedure.md
-│   └── deploy_flow.md
-└── issue/                   # 障害対応記録・インシデント履歴
-    ├── JIRA-123.md
-    └── disk_full_incident.md
+├── wiki/                       # 運用手順書・ナレッジ記事
+│   ├── local/                 # GUIアップロード・ローカル配置用
+│   │   ├── server_setup.md
+│   │   └── backup_procedure.md
+│   └── {repo_name}/           # Gitリポジトリ同期（自動配置）
+│       └── deploy_flow.md
+└── issue/                      # 障害対応記録・インシデント履歴
+    ├── local/
+    │   └── manual_incident.md
+    └── {repo_name}/
+        └── ISS-001.md
 ```
 
 ## ドキュメント
@@ -105,7 +114,8 @@ data/knowledge/
 
 ```
 [テンプレート] data/templates/     テンプレート手順書(Markdown)
-[ナレッジ]    data/knowledge/      ユーザーがここにファイルを置く
+[ナレッジ]    data/knowledge/      ユーザーがここにファイルを置く（3階層構造）
+[リポジトリ]  data/repos/          外部Gitリポジトリのクローン先
 [原本]        data/raw/            取り込み済みファイル(LocalStorage)
 [メタDB]      PostgreSQL           documents / chunks / tickets
 [ベクトルDB]  ChromaDB             collection: wikis, issues
@@ -123,6 +133,8 @@ data/knowledge/
 | chunksをPostgresに保存 | あり | Chromaが壊れても再構築可能、検索後の全文取得が高速 |
 | Collection分離 | source_type単位 | 用途別フィルタで検索精度向上 |
 | メタデータ自動推定 | フォルダ構造 + ファイル内容 | ユーザー入力を最小限にする |
+| 3階層ディレクトリ | {type}/{repo_or_local}/*.md | リポジトリ同期と手動配置を共存 |
+| Gitリポジトリ同期 | 定期pull + knowledge/へ自動配置 | 複数チームのナレッジを自動収集 |
 | テンプレート自動選定 | タイトルキーワード照合 | 指定不要で最適なテンプレートを使用 |
 | GUI | Streamlit | Pythonのみ、コマンド不要で全操作可能 |
 | データ自動同期 | 追加/削除時に全ストア連動 | staleデータを防止、整合性を保証 |

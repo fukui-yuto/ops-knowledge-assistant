@@ -55,8 +55,8 @@
 |---|---|---|---|---|
 | id | UUID | NOT NULL | uuid_generate_v4() | 主キー |
 | source_type | TEXT | NOT NULL | - | `wiki` / `issue` |
-| source_system | TEXT | NULL | - | 出元システム名 |
-| external_id | TEXT | NULL | - | 元システムでのID |
+| source_system | TEXT | NULL | - | 出元（リポジトリ名 or `local`） |
+| external_id | TEXT | NULL | - | 元システムでのID（ファイル名） |
 | title | TEXT | NOT NULL | - | ドキュメントタイトル |
 | file_path | TEXT | NOT NULL | - | 原本ストレージ内の相対パス |
 | content_hash | TEXT | NOT NULL | - | SHA256ハッシュ（差分検知用） |

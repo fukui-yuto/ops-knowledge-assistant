@@ -33,11 +33,17 @@ services:
       RAW_STORAGE_PATH: /app/data/raw
       KNOWLEDGE_PATH: /app/data/knowledge
       TEMPLATES_PATH: /app/data/templates
+      REPOS_CONFIG_PATH: /app/data/repos/repos.yaml
+      REPOS_DATA_PATH: /app/data/repos
+      REPO_SYNC_INTERVAL: ${REPO_SYNC_INTERVAL:-3600}
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     ports:
       - "${APP_PORT:-8502}:8502"
     volumes:
       - ./data/knowledge:/app/data/knowledge
       - ./data/templates:/app/data/templates
+      - ./data/repos:/app/data/repos
       - chroma_data:/app/data/chroma
       - raw_data:/app/data/raw
       - ./output:/app/output

@@ -17,6 +17,8 @@ data/raw/
 data/chroma/
 data/knowledge/**
 !data/knowledge/README.md
+data/repos/
+data/repos.yaml
 output/
 pgdata/
 

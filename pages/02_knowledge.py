@@ -32,8 +32,8 @@ if st.button("アップロード", disabled=not uploaded_file):
         title_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
         title = title_match.group(1).strip() if title_match else filename
 
-        # data/knowledge/ にもファイルを配置（sync.py との整合性を保つ）
-        knowledge_dir = Path(config.knowledge_path) / source_type
+        # data/knowledge/{type}/local/ にファイルを配置（sync.py との整合性を保つ）
+        knowledge_dir = Path(config.knowledge_path) / source_type / "local"
         knowledge_dir.mkdir(parents=True, exist_ok=True)
         knowledge_file = knowledge_dir / f"{filename}.md"
         knowledge_file.write_text(content, encoding="utf-8")
@@ -41,7 +41,7 @@ if st.button("アップロード", disabled=not uploaded_file):
         result = pipeline.ingest_file(
             src_path=str(knowledge_file),
             source_type=source_type,
-            source_system=source_type,
+            source_system="local",
             external_id=filename,
             title=title,
         )
@@ -99,8 +99,9 @@ try:
                     # data/knowledge/ からも削除
                     ext_id = doc.get("external_id", "")
                     stype = doc["source_type"]
+                    ssys = doc.get("source_system", "local")
                     if ext_id:
-                        kf = Path(app_config.knowledge_path) / stype / f"{ext_id}.md"
+                        kf = Path(app_config.knowledge_path) / stype / ssys / f"{ext_id}.md"
                         kf.unlink(missing_ok=True)
 
                     # data/raw/ からも削除

@@ -27,7 +27,25 @@ uv run python sync.py
 uv run python sync.py --dry-run
 ```
 
-### 1.2 手順書の生成
+### 1.2 リポジトリ同期
+
+GUIの「リポジトリ管理」画面でGitリポジトリを登録すると、1時間間隔で自動pullが実行されます。
+
+**手動で同期する場合**:
+```bash
+# 全リポジトリ
+uv run python repo_sync.py
+
+# 特定リポジトリのみ
+uv run python repo_sync.py --name team-a
+```
+
+**リポジトリの追加**:
+1. GUIの「リポジトリ管理」→ URL入力 →「クローンして構造を確認」
+2. ディレクトリツリーから wiki/issue パスを選択
+3. 「保存」で `data/repos.yaml` に設定保存
+
+### 1.3 手順書の生成
 
 ```bash
 # タイトルだけで生成（最小操作）
@@ -44,7 +62,7 @@ uv run python generate.py "K8s Pod再起動手順" \
     -o output/k8s_restart.md
 ```
 
-### 1.3 整合性チェック
+### 1.4 整合性チェック
 
 PostgreSQL と ChromaDB の状態を確認:
 
@@ -54,7 +72,7 @@ uv run python sync.py --check
 
 GUI の「設定」ページからも確認可能です。
 
-### 1.4 ヘルスチェック
+### 1.5 ヘルスチェック
 
 全コンポーネント（PostgreSQL、ChromaDB、API Key）の状態を一括確認:
 
@@ -272,3 +290,7 @@ docker compose up -d
 | CHUNK_SIZE | 800 | チャンクサイズ（文字数） |
 | CHUNK_OVERLAP | 100 | チャンクオーバーラップ（文字数） |
 | APP_PORT | 8502 | Streamlit アプリのポート（Docker Compose用） |
+| REPOS_CONFIG_PATH | ./data/repos.yaml | リポジトリ設定ファイルパス |
+| REPOS_DATA_PATH | ./data/repos | リポジトリクローン先パス |
+| REPO_SYNC_INTERVAL | 3600 | リポジトリ同期間隔（秒、デフォルト1時間） |
+| REPO_TOKEN_* | - | リポジトリアクセストークン（repos.yamlのtoken_envで参照） |

@@ -41,7 +41,8 @@
 | GenerateCLI | generate.py | 手順書生成CLI | Generator |
 | HealthCheck | healthcheck.py | 全コンポーネントのヘルスチェック | DB, VectorStore, Config |
 | Watcher | watcher.py | ナレッジディレクトリのファイル監視・自動同期 | SyncCLI, Config |
-| WebGUI | app.py | StreamlitベースのWeb GUI | Generator, Ingestion, Retriever, Watcher |
+| RepoSync | repo_sync.py | 外部Gitリポジトリの定期pull・knowledge/への配置 | Config |
+| WebGUI | app.py | StreamlitベースのWeb GUI | Generator, Ingestion, Retriever, Watcher, RepoSync |
 
 ## 3. データフロー
 
@@ -51,16 +52,42 @@
 
 ```
 data/knowledge/
-├── wiki/{ファイル名}.md       # 運用手順書・ナレッジ記事
-└── issue/{ファイル名}.md      # 障害対応記録・インシデント履歴
+├── wiki/                          # source_type = wiki
+│   ├── local/*.md                 # GUIアップロード・ローカル配置
+│   ├── {repo_name}/*.md           # Gitリポジトリ同期
+│   └── ...
+└── issue/                         # source_type = issue
+    ├── local/*.md
+    ├── {repo_name}/*.md
+    └── ...
 ```
 
 メタデータはフォルダ構造とファイル内容から自動推定:
 - `source_type` ← 第1階層フォルダ名（`wiki` または `issue`）
+- `source_system` ← 第2階層フォルダ名（リポジトリ名 or `local`）
 - `external_id` ← ファイル名（拡張子除く）
 - `title` ← ファイル内の最初の `# 見出し`（なければファイル名）
 
-### 3.2 同期フロー (sync.py / 自動同期)
+### 3.2 リポジトリ同期フロー (repo_sync.py)
+
+```
+定期実行（1時間間隔）or 手動トリガー（GUI / CLI）
+  │
+  ├─1→ data/repos.yaml を読み込み
+  │
+  ├─2→ 各リポジトリについて:
+  │     ├─ 未クローン → git clone → data/repos/{name}/
+  │     └─ クローン済 → git pull
+  │
+  ├─3→ パスマッピングに従いファイルをコピー:
+  │     ├─ repos/{name}/{paths.wiki}/*.md → knowledge/wiki/{name}/*.md
+  │     └─ repos/{name}/{paths.issue}/*.md → knowledge/issue/{name}/*.md
+  │
+  └─4→ リポジトリから削除されたファイル → knowledge/ 側も削除
+        └─ watchdog が検知 → 既存パイプラインで自動取り込み/削除
+```
+
+### 3.3 ナレッジ同期フロー (sync.py / 自動同期)
 
 GUI（Streamlit）起動中は watchdog がファイル変更を監視し、変更検知後にデバウンス（3秒）を経て自動同期を実行する。
 手動で同期する場合は `uv run python sync.py` を実行する。
@@ -86,7 +113,7 @@ uv run python sync.py  （または watchdog による自動実行）
         └─ LocalStorage: raw ファイル削除
 ```
 
-### 3.3 取り込みフロー (Ingestion Pipeline)
+### 3.4 取り込みフロー (Ingestion Pipeline)
 
 ```
 入力ファイル(.md)
@@ -112,7 +139,7 @@ uv run python sync.py  （または watchdog による自動実行）
   └─7→ ChromaDB に追加 (同じ vector_id, metadata付き)
 ```
 
-### 3.4 生成フロー (Generation)
+### 3.5 生成フロー (Generation)
 
 ```
 ユーザー入力 (title のみでOK)
@@ -171,6 +198,22 @@ data/raw/
 └── issue/JIRA-123.md
 ```
 
+### 4.4 リポジトリクローン (data/repos/)
+
+```
+data/repos/
+├── team-a/                    # git clone 先
+│   ├── docs/procedures/*.md   # paths.wiki で指定されたディレクトリ
+│   └── docs/incidents/*.md    # paths.issue で指定されたディレクトリ
+└── team-b/
+    └── wiki/*.md
+```
+
+### 4.5 リポジトリ設定 (data/repos.yaml)
+
+リポジトリ同期の設定をYAMLファイルで管理する。GUIから編集可能。
+トークンは `.env` の環境変数名で参照し、YAML内にトークン値は書かない。
+
 ## 5. 自動同期メカニズム
 
 ドキュメントの追加・更新・削除が発生した際、全データストアが自動的に同期される。
@@ -215,7 +258,6 @@ data/raw/
 - 対話的に手順書を改善するフロー
 
 ### 外部連携
-- JIRA / Confluence API 自動同期
 - Slack Bot（手順書生成リクエスト・通知）
 - PDF / Confluence Wiki 形式へのエクスポート
 

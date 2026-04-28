@@ -27,7 +27,8 @@ def extract_title_from_md(text: str, filename: str) -> str:
 def scan_knowledge_dir(knowledge_path: Path) -> list[dict[str, Any]]:
     """ナレッジディレクトリを走査し、取り込み対象のファイル情報を収集する。
 
-    2階層構造: data/knowledge/{source_type}/{ファイル}.md
+    3階層構造: data/knowledge/{source_type}/{source_system}/{ファイル}.md
+    source_system は 'local'（手動配置）またはリポジトリ名。
     """
     files: list[dict[str, Any]] = []
 
@@ -41,22 +42,27 @@ def scan_knowledge_dir(knowledge_path: Path) -> list[dict[str, Any]]:
         if source_type not in VALID_SOURCE_TYPES:
             continue
 
-        for md_file in sorted(source_type_dir.glob("*.md")):
-            if md_file.name == "README.md":
+        for source_system_dir in sorted(source_type_dir.iterdir()):
+            if not source_system_dir.is_dir():
                 continue
-            text = md_file.read_text(encoding="utf-8")
-            external_id = md_file.stem
-            title = extract_title_from_md(text, external_id)
-            content_hash = LocalStorage.hash_text(text)
+            source_system = source_system_dir.name
 
-            files.append({
-                "path": md_file,
-                "source_type": source_type,
-                "source_system": source_type,
-                "external_id": external_id,
-                "title": title,
-                "content_hash": content_hash,
-            })
+            for md_file in sorted(source_system_dir.glob("*.md")):
+                if md_file.name == "README.md":
+                    continue
+                text = md_file.read_text(encoding="utf-8")
+                external_id = md_file.stem
+                title = extract_title_from_md(text, external_id)
+                content_hash = LocalStorage.hash_text(text)
+
+                files.append({
+                    "path": md_file,
+                    "source_type": source_type,
+                    "source_system": source_system,
+                    "external_id": external_id,
+                    "title": title,
+                    "content_hash": content_hash,
+                })
 
     return files
 
@@ -79,8 +85,10 @@ def run_sync(
         key = (f["source_system"], f["external_id"])
         file_keys.add(key)
 
+        rel_path = f"{f['source_type']}/{f['source_system']}/{f['external_id']}.md"
+
         if dry_run:
-            print(f"[dry-run] {f['source_type']}/{f['external_id']}.md → \"{f['title']}\"")
+            print(f"[dry-run] {rel_path} → \"{f['title']}\"")
             continue
 
         try:
@@ -93,16 +101,16 @@ def run_sync(
             )
             action = result["action"]
             if action == "created":
-                print(f"[add]    {f['source_type']}/{f['external_id']}.md → \"{f['title']}\" ({result['chunks']} chunks)")
+                print(f"[add]    {rel_path} → \"{f['title']}\" ({result['chunks']} chunks)")
                 stats["added"] += 1
             elif action == "updated":
-                print(f"[update] {f['source_type']}/{f['external_id']}.md → \"{f['title']}\" ({result['chunks']} chunks)")
+                print(f"[update] {rel_path} → \"{f['title']}\" ({result['chunks']} chunks)")
                 stats["updated"] += 1
             else:
-                print(f"[skip]   {f['source_type']}/{f['external_id']}.md (変更なし)")
+                print(f"[skip]   {rel_path} (変更なし)")
                 stats["skipped"] += 1
         except Exception as e:
-            print(f"[error]  {f['source_type']}/{f['external_id']}.md → {e}", file=sys.stderr)
+            print(f"[error]  {rel_path} → {e}", file=sys.stderr)
             stats["errors"] += 1
 
     # 3. DB にあるがディレクトリにないファイルを削除（dry-run時はスキップ）
@@ -175,7 +183,7 @@ def main():
     if not knowledge_path.exists():
         knowledge_path.mkdir(parents=True, exist_ok=True)
         print(f"[info] ナレッジディレクトリを作成しました: {knowledge_path}")
-        print("[info] data/knowledge/wiki/ または data/knowledge/issue/ にMarkdownファイルを配置してください")
+        print("[info] data/knowledge/wiki/local/ または data/knowledge/issue/local/ にMarkdownファイルを配置してください")
         return
 
     print(f"[sync] {knowledge_path} を走査中...")

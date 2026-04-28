@@ -14,8 +14,9 @@
 **ユーザーの操作は最小限にする。**
 
 ### 取り込み（ユーザーがやること）
-1. `data/knowledge/{source_type}/` にMarkdownファイルを置く
+1. `data/knowledge/{source_type}/{repo_or_local}/` にMarkdownファイルを置く
 2. `python sync.py` を実行する（GUI起動中は watchdog が自動同期）
+3. または、Gitリポジトリを登録すれば定期pull（1時間間隔）で自動取り込み
 
 これだけで、ファイル名からexternal_id、ファイル内の `# 見出し` からタイトルを自動抽出し、
 フォルダ構造から source_type を自動判定して取り込む。
@@ -43,8 +44,12 @@
 | F-ING-011 | ファイル追加・更新・削除を watchdog で自動検知し取り込み/削除する（GUI起動中） | Must |
 | F-ING-012 | ドキュメント削除時、PostgreSQL・ChromaDB・LocalStorageの全データを自動で連動削除する | Must |
 | F-ING-013 | 同期状態の整合性チェックコマンドを提供する（DB・ChromaDB・ファイルの不整合検出） | Should |
-| F-ING-014 | JIRA API からチケットを自動同期できる | Could |
-| F-ING-015 | Confluence API から手順書を自動同期できる | Could |
+| F-ING-014 | 外部Gitリポジトリを登録し、定期pull（1時間間隔）で自動取り込みできる | Must |
+| F-ING-015 | 複数のGitリポジトリを同時に登録・管理できる | Must |
+| F-ING-016 | リポジトリの手動同期をGUIおよびCLIからトリガーできる | Must |
+| F-ING-017 | リポジトリ認証にHTTPSアクセストークンを使用できる（トークンは.envで管理） | Must |
+| F-ING-018 | リポジトリクローン後にディレクトリツリーをGUIで表示し、wiki/issueパスをユーザーが選択・マッピングできる | Must |
+| F-ING-019 | リポジトリから削除されたファイルは knowledge/ 側も自動削除し、DB・ChromaDB と連動する | Must |
 
 ### 3.2 テンプレート管理
 
@@ -148,6 +153,8 @@
 | チャンク | ドキュメントを分割した単位。ベクトル検索・LLMコンテキストの基本単位 |
 | ナレッジディレクトリ | `data/knowledge/` 配下のフォルダ。ここにファイルを置くだけで取り込み対象になる |
 | source_type | ドキュメント種別: wiki / issue |
+| リポジトリ同期 | 外部Gitリポジトリを定期的にpullし、指定ディレクトリの.mdファイルをknowledge/に配置する機能 |
+| repos.yaml | リポジトリ同期の設定ファイル。リポジトリURL・ブランチ・パスマッピング等を定義する |
 | Ingestion | ドキュメントの取り込み処理（保存→チャンク→Embedding→DB登録） |
 | Generation | テンプレ + 過去手順 + 指示 → LLMで新規手順書を生成する処理 |
 
@@ -173,10 +180,17 @@
 2. 指定されたテンプレート・説明・コンテキストに基づいて生成される
 3. ファイルに保存される
 
-### UC-003: 過去手順の取り込み（最小操作）
-1. ユーザーが `data/knowledge/wiki/` にMarkdownファイルを配置する
-2. ユーザーが `python sync.py` を実行する
+### UC-003: 過去手順の取り込み（ローカル配置）
+1. ユーザーが `data/knowledge/wiki/local/` にMarkdownファイルを配置する
+2. ユーザーが `python sync.py` を実行する（GUI起動中は自動同期）
 3. システムがフォルダ構造からメタデータを自動判定し、取り込みを実行する
+
+### UC-003b: 過去手順の取り込み（Gitリポジトリ連携）
+1. ユーザーがGUIの「リポジトリ管理」でリポジトリURLを入力しクローンする
+2. ディレクトリツリーが表示され、wiki/issueに対応するパスを選択する
+3. 設定を保存すると、1時間間隔で定期pullが実行される
+4. pullで取得した.mdファイルが `data/knowledge/{type}/{repo_name}/` に自動配置される
+5. watchdogが検知し、既存パイプラインで自動取り込みされる
 
 ### UC-004: テンプレートの追加
 1. ユーザーが `data/templates/` にMarkdownファイルを配置する
@@ -195,26 +209,76 @@
 
 ## 8. ナレッジディレクトリ規約
 
-ユーザーが手順書を配置するディレクトリの構造（2階層）:
+ユーザーが手順書を配置するディレクトリの構造（3階層）:
 
 ```
 data/knowledge/
-├── wiki/                   # source_type = wiki（運用手順書・ナレッジ記事）
-│   ├── server_setup.md     # external_id = server_setup, タイトルはファイル内#見出しから
-│   ├── backup_config.md
-│   └── deploy_flow.md
-└── issue/                  # source_type = issue（障害対応記録・インシデント履歴）
-    ├── JIRA-123.md
-    └── disk_full_incident.md
+├── wiki/                       # source_type = wiki
+│   ├── local/                  # GUIアップロード・ローカル配置用
+│   │   ├── server_setup.md
+│   │   └── backup_config.md
+│   ├── team-a/                 # Gitリポジトリ同期（team-aリポジトリ由来）
+│   │   ├── deploy_flow.md
+│   │   └── monitoring.md
+│   └── team-b/                 # Gitリポジトリ同期（team-bリポジトリ由来）
+│       └── network_setup.md
+└── issue/                      # source_type = issue
+    ├── local/                  # GUIアップロード・ローカル配置用
+    │   └── manual_incident.md
+    ├── team-a/                 # Gitリポジトリ同期
+    │   ├── ISS-001.md
+    │   └── ISS-002.md
+    └── team-b/                 # Gitリポジトリ同期
+        └── INC-010.md
 ```
 
-将来的に GitLab Wiki / Issues と同期予定のため、種別を wiki / issue に統一している。
+- 第2階層はリポジトリ名（repos.yaml の `name`）または `local`（手動配置用）
+- リポジトリ同期時はリポジトリ内の指定パスから .md ファイルがコピーされる
+- `local/` はGUIアップロードおよびローカルファイル配置用の固定名
 
 ### 自動推定ルール
 
 | メタデータ | 推定元 | 例 |
 |---|---|---|
 | source_type | 第1階層フォルダ名 | `wiki/` → `wiki` |
+| source_system | 第2階層フォルダ名 | `team-a/` → `team-a` |
 | external_id | ファイル名（拡張子除く） | `server_setup.md` → `server_setup` |
 | title | ファイル内の最初の `# 見出し` | `# サーバー構築手順` → `サーバー構築手順` |
 | title (フォールバック) | ファイル名をヒューマンリーダブルに変換 | `server_setup` → `server setup` |
+
+## 9. Gitリポジトリ同期
+
+### 設定ファイル（data/repos.yaml）
+
+```yaml
+repositories:
+  - name: team-a                          # リポジトリ識別名（knowledge/配下のフォルダ名になる）
+    url: https://gitlab.example.com/team-a/knowledge.git
+    branch: main
+    token_env: REPO_TOKEN_TEAM_A          # .env の環境変数名を参照
+    paths:
+      wiki: docs/procedures               # リポジトリ内のwiki対象ディレクトリ
+      issue: docs/incidents               # リポジトリ内のissue対象ディレクトリ（空欄可）
+
+  - name: team-b
+    url: https://gitlab.example.com/team-b/runbooks.git
+    branch: main
+    token_env: REPO_TOKEN_TEAM_B
+    paths:
+      wiki: wiki
+      issue: ""                           # issueなし
+```
+
+### 同期タイミング
+
+| トリガー | 間隔 | 説明 |
+|---|---|---|
+| 定期pull | 1時間間隔 | GUI（Streamlit）起動中に自動実行 |
+| 手動トリガー（GUI） | 任意 | リポジトリ管理画面の「同期」ボタン |
+| 手動トリガー（CLI） | 任意 | `uv run python repo_sync.py` |
+
+### 認証
+
+- HTTPSアクセストークンを使用
+- トークンは `.env` に `REPO_TOKEN_TEAM_A=glpat-xxxx` のように設定
+- `repos.yaml` には環境変数名のみ記載（トークン値は書かない）

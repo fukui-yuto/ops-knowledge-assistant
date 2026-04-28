@@ -33,8 +33,10 @@ ops-knowledge-assistant/
 │   ├── 02_knowledge.py      # ナレッジ管理ページ
 │   ├── 03_templates.py      # テンプレートページ
 │   ├── 04_search.py         # 検索ページ
-│   └── 05_settings.py       # 設定ページ
+│   ├── 05_settings.py       # 設定ページ
+│   └── 06_repos.py          # リポジトリ管理ページ
 ├── sync.py                  # ナレッジ同期CLI（メインの取り込み手段）
+├── repo_sync.py             # リポジトリ同期CLI（外部Git定期pull）
 ├── generate.py              # 手順書生成CLI（タイトルだけで生成可能）
 ├── src/                     # コアパッケージ
 │   ├── __init__.py
@@ -48,12 +50,14 @@ ops-knowledge-assistant/
 │   ├── retriever.py         # ベクトル検索
 │   ├── generator.py         # LLM手順書生成
 │   ├── watcher.py           # ナレッジディレクトリのファイル監視（watchdog）
+│   ├── repo_sync.py         # 外部Gitリポジトリ同期（clone/pull + ファイル配置）
 │   └── schema.sql           # PostgreSQL DDL
 ├── tests/                   # テスト
 │   ├── test_config.py
 │   ├── test_storage.py
 │   ├── test_chunking.py
 │   ├── test_sync.py
+│   ├── test_repo_sync.py
 │   └── test_generator.py
 ├── docker-compose.yml       # Docker Compose 構成
 ├── Dockerfile               # アプリコンテナ定義
@@ -62,8 +66,10 @@ ops-knowledge-assistant/
 ├── data/
 │   ├── templates/           # テンプレート手順書（Git管理対象）
 │   ├── knowledge/           # ナレッジ配置ディレクトリ（ユーザーがここにファイルを置く）
-│   │   ├── wiki/*.md        # Wiki（運用手順書・ナレッジ記事）
-│   │   └── issue/*.md       # Issue（障害対応記録・インシデント履歴）
+│   │   ├── wiki/{repo_or_local}/*.md   # Wiki（運用手順書・ナレッジ記事）
+│   │   └── issue/{repo_or_local}/*.md  # Issue（障害対応記録・インシデント履歴）
+│   ├── repos/               # Gitリポジトリクローン先（gitignore）
+│   ├── repos.yaml           # リポジトリ同期設定
 │   ├── raw/                 # 取り込み済み原本（gitignore）
 │   └── chroma/              # ChromaDB 永続化（gitignore）
 ├── .env.example
@@ -119,14 +125,16 @@ ops-knowledge-assistant/
 - ブランチ: `main` のみ（当面）
 - コミットメッセージ: 日本語、簡潔に、末尾に `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
 - タスク完了後は必ずコミット＆プッシュする
-- gitignore対象: `.env`, `data/raw/`, `data/chroma/`, `data/knowledge/`, `output/`, `pgdata/`
+- gitignore対象: `.env`, `data/raw/`, `data/chroma/`, `data/knowledge/`, `data/repos/`, `data/repos.yaml`, `output/`, `pgdata/`
 
 ## 主要な設計判断
 - `document_id`（UUID）が PostgreSQL ⇔ ChromaDB の結合キー
 - テンプレートはファイルベース（`data/templates/*.md`）、DBには入れない
-- ナレッジは `data/knowledge/{source_type}/` に置くだけで自動取り込み（watchdog がファイル変更を検知し自動同期）
+- ナレッジは `data/knowledge/{source_type}/{repo_or_local}/` に置くだけで自動取り込み（watchdog がファイル変更を検知し自動同期）
 - source_type は `wiki`（手順書・ナレッジ）と `issue`（障害対応記録）の2種類
-- 将来的に GitLab Wiki / Issues と同期予定
+- 第2階層はリポジトリ名 or `local`（手動配置用）
+- 外部Gitリポジトリを登録して定期pull（1時間間隔）で自動取り込み可能
+- リポジトリ認証はHTTPSアクセストークン（.envで管理）
 - 原本ファイルはベクトルDBとは別管理（再Embedding のため）
 - `content_hash`（SHA256）で差分検知、未変更ファイルはスキップ
 - ChromaDB のコレクションは `source_type` 単位で分離（フィルタ検索精度向上）
@@ -137,7 +145,7 @@ ops-knowledge-assistant/
 ## テスト
 - pytest を使用（`uv run pytest tests/ -v`）
 - LLM/Embedding 呼び出しはモックで単体テスト
-- テスト対象: config, storage, chunking, sync, generator（29テスト）
+- テスト対象: config, storage, chunking, sync, repo_sync, generator（40テスト）
 
 ## よく使うコマンド
 

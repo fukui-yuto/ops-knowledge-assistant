@@ -132,21 +132,26 @@ docker compose exec app uv run python sync.py --init-schema
 
 ```
 data/knowledge/
-├── wiki/                   # 運用手順書・ナレッジ記事
-│   ├── server_setup.md
-│   ├── backup_config.md
-│   └── deploy_flow.md
-└── issue/                  # 障害対応記録・インシデント履歴
-    ├── JIRA-123.md
-    └── disk_full_incident.md
+├── wiki/                       # 運用手順書・ナレッジ記事
+│   ├── local/                  # GUIアップロード・ローカル配置用
+│   │   ├── server_setup.md
+│   │   └── backup_config.md
+│   └── {repo_name}/            # Gitリポジトリ同期（自動配置）
+│       └── deploy_flow.md
+└── issue/                      # 障害対応記録・インシデント履歴
+    ├── local/
+    │   └── manual_incident.md
+    └── {repo_name}/
+        └── ISS-001.md
 ```
 
 **ルール**:
 - 1階層目: `wiki`, `issue` のいずれか（種別）
-- 2階層目: Markdown ファイル（`.md`）
+- 2階層目: リポジトリ名 or `local`（手動配置用）
+- 3階層目: Markdown ファイル（`.md`）
 - ファイルの先頭に `# タイトル` を書くと、タイトルとして自動抽出されます
 
-**ファイルの例** (`data/knowledge/wiki/backup_procedure.md`):
+**ファイルの例** (`data/knowledge/wiki/local/backup_procedure.md`):
 ```markdown
 # PostgreSQL バックアップ手順
 
@@ -174,8 +179,8 @@ uv run python sync.py
 出力例:
 ```
 [sync] ./data/knowledge を走査中...
-[add]    wiki/backup_procedure.md → "PostgreSQL バックアップ手順" (3 chunks)
-[add]    issue/JIRA-123.md → "Pod CrashLoopBackOff" (1 chunks)
+[add]    wiki/local/backup_procedure.md → "PostgreSQL バックアップ手順" (3 chunks)
+[add]    issue/local/JIRA-123.md → "Pod CrashLoopBackOff" (1 chunks)
 [sync] 完了: 追加 2, 更新 0, スキップ 0, 削除 0
 ```
 
@@ -253,6 +258,7 @@ uv run streamlit run app.py --server.port 8502
 | ナレッジ管理 | ファイルのアップロード・一覧表示・削除 |
 | テンプレート | テンプレートの一覧・プレビュー |
 | 検索 | ナレッジベースの横断検索（ベクトル類似検索） |
+| リポジトリ | 外部Gitリポジトリの登録・同期管理 |
 | 設定 | DB接続状態・統計情報・整合性チェック・スキーマ初期化 |
 
 ### 基本操作フロー
