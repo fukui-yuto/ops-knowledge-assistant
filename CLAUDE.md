@@ -1,0 +1,109 @@
+# CLAUDE.md - Claude Code プロジェクト指示書
+
+## プロジェクト概要
+ops-knowledge-assistant: テンプレート手順書 + 過去手順ナレッジから、新規運用手順書をLLMで自動生成するRAGシステム。
+
+## 技術スタック
+- Python 3.11+
+- PostgreSQL 16（メタデータ、チャンク保存）
+- ChromaDB（ベクトルストア）
+- Google Gemini（Embedding: text-embedding-004、生成: gemini-2.0-flash）
+- LangChain text-splitters（チャンク分割）
+
+## ディレクトリ構成
+```
+ops-knowledge-assistant/
+├── CLAUDE.md                # 本ファイル（Claude Code への指示書）
+├── README.md                # プロジェクト概要・使い方
+├── docs/                    # 設計ドキュメント・仕様書群
+│   ├── requirements.md      # 要件定義書
+│   ├── architecture.md      # アーキテクチャ設計書
+│   ├── template-spec.md     # テンプレート仕様書
+│   ├── api-spec.md          # CLI/API インターフェース仕様書
+│   ├── data-model.md        # データモデル仕様書
+│   └── operations.md        # 運用ガイド
+├── config.py                # 設定管理（環境変数ベース）
+├── db.py                    # PostgreSQL アクセス層
+├── vector_store.py          # ChromaDB ラッパー
+├── chunking.py              # ソース種別ごとのチャンク戦略
+├── embedding.py             # Gemini Embedding
+├── storage.py               # 原本ファイルストレージ（LocalStorage）
+├── ingestion.py             # 取り込みパイプライン
+├── retriever.py             # ベクトル検索（関連手順取得）
+├── generator.py             # LLM手順書生成
+├── ingest_cli.py            # 取り込みCLI
+├── generate_cli.py          # 生成CLI
+├── sync_cli.py              # 同期CLI（予定）
+├── schema.sql               # PostgreSQL DDL
+├── data/
+│   ├── templates/           # テンプレート手順書（Git管理対象）
+│   ├── raw/                 # 取り込み済み原本（gitignore）
+│   └── chroma/              # ChromaDB 永続化（gitignore）
+├── requirements.txt
+├── .env.example
+└── .gitignore
+```
+
+## 同期ルール（最重要）
+
+### コードとドキュメントの同期
+- コードと仕様書（docs/*.md、README.md）は常に同期を保つこと
+- ファイルの追加・削除・リネーム時 → CLAUDE.md のディレクトリ構成、README.md、関連 docs/*.md を更新
+- CLIオプションの追加・削除時 → docs/api-spec.md を更新
+- DBスキーマ変更時（schema.sql） → docs/data-model.md を更新
+- 環境変数の追加・削除時 → docs/operations.md の環境変数一覧と .env.example を更新
+- テンプレートの追加・削除時 → docs/template-spec.md のカテゴリ表を更新
+- アーキテクチャやデータフローの変更時 → docs/architecture.md を更新
+- 機能の追加・削除時 → docs/requirements.md を更新
+
+### データの自動同期
+- ドキュメント（手順書・チケット等）の追加・削除時、PostgreSQL・ChromaDB・LocalStorage を自動で連動させる
+- 古いデータが残らないようにすること（stale data 禁止）
+- 詳細は docs/architecture.md「自動同期メカニズム」セクション参照
+
+### Git運用
+- タスク完了後は必ずコミット＆プッシュ（origin/main）する
+
+## コーディング規約
+- 言語: Python、docstring・コメントは日本語
+- 型ヒント: `from __future__ import annotations` を使用、`str | None` 形式（`Optional[str]` は使わない）
+- import順: 標準ライブラリ → サードパーティ → ローカル（空行で区切る）
+- 設定: 全て環境変数経由、`config.py` の dataclass で管理
+- DB接続: `psycopg2` + コンテキストマネージャ（`get_conn()`）、接続は必ず閉じる
+- エラー処理: 明確なメッセージで例外を送出、ingestion_log テーブルに記録
+- 文字コード: 常にUTF-8
+- Markdownファイル: 日本語で記述
+
+## Gitワークフロー
+- ブランチ: `main` のみ（当面）
+- コミットメッセージ: 日本語、簡潔に、末尾に `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
+- タスク完了後は必ずコミット＆プッシュする
+- gitignore対象: `.env`, `data/raw/`, `data/chroma/`, `output/`, `pgdata/`
+
+## 主要な設計判断
+- `document_id`（UUID）が PostgreSQL ⇔ ChromaDB の結合キー
+- テンプレートはファイルベース（`data/templates/*.md`）、DBには入れない
+- 原本ファイルはベクトルDBとは別管理（再Embedding のため）
+- `content_hash`（SHA256）で差分検知、未変更ファイルはスキップ
+- ChromaDB のコレクションは `source_type` 単位で分離（フィルタ検索精度向上）
+- 手順書生成は Gemini 2.0 Flash で構造化プロンプト（テンプレ + 関連手順 + ユーザー指示）
+
+## テスト（予定）
+- pytest を使用
+- テスト用DB: `log_assistant_test`（本番DBとは分離）
+- LLM/Embedding 呼び出しはモックで単体テスト
+
+## よく使うコマンド
+```bash
+# 手順書の取り込み
+python -m scripts.ingest_cli --path <ファイル> --source-type procedure --source-system <システム> --external-id <ID> --title "<タイトル>"
+
+# 新規手順書の生成
+python -m scripts.generate_cli --title "<タイトル>" --description "<説明>" --output <出力先>
+
+# テンプレート一覧
+python -m scripts.generate_cli --list-templates
+
+# ディレクトリ同期（予定）
+python -m scripts.sync_cli --dir <ディレクトリ> --source-type procedure --source-system <システム>
+```
