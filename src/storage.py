@@ -31,6 +31,14 @@ class LocalStorage:
     def read_text(self, relpath: str) -> str:
         return (self.base_path / relpath).read_text(encoding="utf-8")
 
+    def delete(self, relpath: str) -> bool:
+        """ストレージからファイルを削除する。"""
+        path = self.base_path / relpath
+        if path.exists():
+            path.unlink()
+            return True
+        return False
+
     @staticmethod
     def hash_file(path: str | Path) -> str:
         """SHA256 of file content. Used for change detection."""

@@ -28,3 +28,8 @@ pgdata/
 # OS
 .DS_Store
 Thumbs.db
+
+# Test / Cache
+.pytest_cache/
+htmlcov/
+.coverage

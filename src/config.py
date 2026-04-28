@@ -1,7 +1,6 @@
-"""Configuration management."""
+"""設定管理。全て環境変数ベース。"""
 import os
 from dataclasses import dataclass
-from pathlib import Path
 
 
 @dataclass
@@ -16,16 +15,23 @@ class Config:
     # ChromaDB
     chroma_path: str = os.getenv("CHROMA_PATH", "./data/chroma")
 
-    # Storage (raw files)
+    # Storage
     raw_storage_path: str = os.getenv("RAW_STORAGE_PATH", "./data/raw")
+    knowledge_path: str = os.getenv("KNOWLEDGE_PATH", "./data/knowledge")
 
     # Embedding
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "models/text-embedding-004")
     google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
 
+    # Generation
+    generation_model: str = os.getenv("GENERATION_MODEL", "gemini-2.0-flash")
+
     # Chunking
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "800"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "100"))
+
+    # Templates
+    templates_path: str = os.getenv("TEMPLATES_PATH", "./data/templates")
 
     @property
     def pg_dsn(self) -> str:

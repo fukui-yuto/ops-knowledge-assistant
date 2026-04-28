@@ -1,0 +1,22 @@
+[project]
+name = "ops-knowledge-assistant"
+version = "0.1.0"
+description = "テンプレート + 過去手順ナレッジから新規運用手順書をLLMで自動生成するRAGシステム"
+requires-python = ">=3.11"
+dependencies = [
+    "psycopg2-binary>=2.9",
+    "chromadb>=0.5",
+    "google-generativeai>=0.7",
+    "langchain-text-splitters>=0.3",
+    "streamlit>=1.38",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

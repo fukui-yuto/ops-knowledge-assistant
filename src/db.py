@@ -1,8 +1,9 @@
-"""PostgreSQL data access layer."""
+"""PostgreSQL データアクセス層。"""
 from __future__ import annotations
 
 import json
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any, Iterator
 from uuid import UUID
 
@@ -25,8 +26,10 @@ def get_conn() -> Iterator[psycopg2.extensions.connection]:
         conn.close()
 
 
-def init_schema(schema_path: str = "sql/schema.sql") -> None:
-    """Apply DDL."""
+def init_schema(schema_path: str | None = None) -> None:
+    """DDLを適用する。"""
+    if schema_path is None:
+        schema_path = str(Path(__file__).parent / "schema.sql")
     with open(schema_path, "r", encoding="utf-8") as f:
         ddl = f.read()
     with get_conn() as conn, conn.cursor() as cur:
@@ -47,14 +50,13 @@ def upsert_document(
     metadata: dict[str, Any] | None = None,
 ) -> tuple[UUID, str]:
     """
-    Insert or update a document. Returns (id, action) where action is
-    'created' | 'updated' | 'unchanged'.
+    ドキュメントをINSERTまたはUPDATEする。
+    Returns (id, action) where action is 'created' | 'updated' | 'unchanged'.
     """
     metadata = metadata or {}
     with get_conn() as conn, conn.cursor(
         cursor_factory=psycopg2.extras.RealDictCursor
     ) as cur:
-        # 既存チェック
         cur.execute(
             """
             SELECT id, content_hash FROM documents
@@ -109,8 +111,33 @@ def upsert_document(
         return existing["id"], "updated"
 
 
+def delete_document(document_id: UUID) -> list[str]:
+    """ドキュメントと関連データを削除する。ChromaDB削除用にvector_idsを返す。"""
+    vector_ids = delete_chunks(document_id)
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute("DELETE FROM documents WHERE id = %s", (str(document_id),))
+    return vector_ids
+
+
+def delete_document_by_external(source_system: str, external_id: str) -> tuple[UUID | None, list[str]]:
+    """source_system + external_id でドキュメントを特定して削除する。"""
+    with get_conn() as conn, conn.cursor(
+        cursor_factory=psycopg2.extras.RealDictCursor
+    ) as cur:
+        cur.execute(
+            "SELECT id FROM documents WHERE source_system = %s AND external_id = %s",
+            (source_system, external_id),
+        )
+        row = cur.fetchone()
+    if not row:
+        return None, []
+    doc_id = row["id"]
+    vector_ids = delete_document(doc_id)
+    return doc_id, vector_ids
+
+
 def delete_chunks(document_id: UUID) -> list[str]:
-    """Delete all chunks of a document. Returns deleted vector_ids for ChromaDB cleanup."""
+    """ドキュメントの全チャンクを削除。ChromaDB削除用にvector_idsを返す。"""
     with get_conn() as conn, conn.cursor() as cur:
         cur.execute(
             "SELECT vector_id FROM chunks WHERE document_id = %s",
@@ -202,8 +229,53 @@ def log_ingestion(
 
 
 # ----------------------------------------------------------------
-# 検索系(後段のRAGから利用)
+# 一覧・検索系
 # ----------------------------------------------------------------
+def list_documents(
+    source_type: str | None = None,
+    source_system: str | None = None,
+) -> list[dict[str, Any]]:
+    """ドキュメント一覧を取得する。フィルタ可能。"""
+    with get_conn() as conn, conn.cursor(
+        cursor_factory=psycopg2.extras.RealDictCursor
+    ) as cur:
+        conditions = []
+        params: list[Any] = []
+        if source_type:
+            conditions.append("d.source_type = %s")
+            params.append(source_type)
+        if source_system:
+            conditions.append("d.source_system = %s")
+            params.append(source_system)
+
+        where = "WHERE " + " AND ".join(conditions) if conditions else ""
+        cur.execute(
+            f"""
+            SELECT d.id, d.source_type, d.source_system, d.external_id,
+                   d.title, d.file_path, d.content_hash, d.created_at, d.updated_at,
+                   (SELECT COUNT(*) FROM chunks c WHERE c.document_id = d.id) as chunk_count
+              FROM documents d
+              {where}
+             ORDER BY d.updated_at DESC
+            """,
+            params,
+        )
+        return [dict(r) for r in cur.fetchall()]
+
+
+def get_all_external_ids(source_type: str | None = None) -> dict[tuple[str, str], UUID]:
+    """(source_system, external_id) → document_id のマッピングを返す。"""
+    with get_conn() as conn, conn.cursor() as cur:
+        if source_type:
+            cur.execute(
+                "SELECT source_system, external_id, id FROM documents WHERE source_type = %s",
+                (source_type,),
+            )
+        else:
+            cur.execute("SELECT source_system, external_id, id FROM documents")
+        return {(row[0], row[1]): row[2] for row in cur.fetchall()}
+
+
 def fetch_documents_by_ids(ids: list[UUID]) -> list[dict[str, Any]]:
     if not ids:
         return []
@@ -221,3 +293,13 @@ def fetch_documents_by_ids(ids: list[UUID]) -> list[dict[str, Any]]:
             ([str(i) for i in ids],),
         )
         return [dict(r) for r in cur.fetchall()]
+
+
+def get_stats() -> dict[str, int]:
+    """システム統計を取得する。"""
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute("SELECT COUNT(*) FROM documents")
+        doc_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM chunks")
+        chunk_count = cur.fetchone()[0]
+        return {"documents": doc_count, "chunks": chunk_count}
