@@ -54,7 +54,7 @@
 | カラム | 型 | NULL | デフォルト | 説明 |
 |---|---|---|---|---|
 | id | UUID | NOT NULL | uuid_generate_v4() | 主キー |
-| source_type | TEXT | NOT NULL | - | `procedure` / `ticket` / `config` / `log` |
+| source_type | TEXT | NOT NULL | - | `wiki` / `issue` |
 | source_system | TEXT | NULL | - | 出元システム名 |
 | external_id | TEXT | NULL | - | 元システムでのID |
 | title | TEXT | NOT NULL | - | ドキュメントタイトル |
@@ -138,10 +138,10 @@
 
 | コレクション名 | source_type | 距離関数 | 次元数 |
 |---|---|---|---|
-| procedures | procedure | cosine | 768 |
-| tickets | ticket | cosine | 768 |
-| configs | config | cosine | 768 |
-| logs | log | cosine | 768 |
+| wikis | wiki | cosine | Gemini: 768 / OpenAI: 1536 |
+| issues | issue | cosine | Gemini: 768 / OpenAI: 1536 |
+
+> **注意**: LLM_PROVIDER を切り替えた場合、Embedding 次元数が変わるため ChromaDB の再構築が必要です。
 
 ### metadata スキーマ
 

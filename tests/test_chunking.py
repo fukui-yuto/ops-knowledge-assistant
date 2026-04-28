@@ -35,17 +35,17 @@ def test_chunk_generic():
     assert len(chunks) > 1
 
 
-def test_chunk_by_source_type_procedure():
-    """source_type=procedureでchunk_procedureが使われること。"""
+def test_chunk_by_source_type_wiki():
+    """source_type=wikiでchunk_procedureが使われること。"""
     text = "# Title\n\nContent"
-    chunks = chunk_by_source_type("procedure", text)
+    chunks = chunk_by_source_type("wiki", text)
     assert len(chunks) > 0
 
 
-def test_chunk_by_source_type_ticket():
-    """source_type=ticketでchunk_ticketが使われること。"""
+def test_chunk_by_source_type_issue():
+    """source_type=issueでchunk_ticketが使われること。"""
     text = "Short ticket"
-    chunks = chunk_by_source_type("ticket", text)
+    chunks = chunk_by_source_type("issue", text)
     assert len(chunks) == 1
 
 

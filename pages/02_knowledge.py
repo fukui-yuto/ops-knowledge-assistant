@@ -16,15 +16,11 @@ def get_pipeline():
 # --- アップロードセクション ---
 st.markdown("### ファイルアップロード")
 
-col1, col2 = st.columns(2)
-with col1:
-    source_type = st.selectbox("種別", ["procedure", "ticket", "config", "log"])
-with col2:
-    source_system = st.text_input("システム", placeholder="confluence, jira, k8s 等")
+source_type = st.selectbox("種別", ["wiki", "issue"])
 
 uploaded_file = st.file_uploader("Markdownファイルを選択", type=["md"])
 
-if st.button("アップロード", disabled=not (uploaded_file and source_system)):
+if st.button("アップロード", disabled=not uploaded_file):
     try:
         pipeline = get_pipeline()
 
@@ -37,7 +33,7 @@ if st.button("アップロード", disabled=not (uploaded_file and source_system
         title = title_match.group(1).strip() if title_match else filename
 
         # data/knowledge/ にもファイルを配置（sync.py との整合性を保つ）
-        knowledge_dir = Path(config.knowledge_path) / source_type / source_system
+        knowledge_dir = Path(config.knowledge_path) / source_type
         knowledge_dir.mkdir(parents=True, exist_ok=True)
         knowledge_file = knowledge_dir / f"{filename}.md"
         knowledge_file.write_text(content, encoding="utf-8")
@@ -45,7 +41,7 @@ if st.button("アップロード", disabled=not (uploaded_file and source_system
         result = pipeline.ingest_file(
             src_path=str(knowledge_file),
             source_type=source_type,
-            source_system=source_system,
+            source_system=source_type,
             external_id=filename,
             title=title,
         )
@@ -68,32 +64,26 @@ st.markdown("### 登録済みナレッジ一覧")
 
 
 @st.cache_data(ttl=10)
-def load_documents(type_filter, system_filter):
+def load_documents(type_filter):
     from src import db
     return db.list_documents(
         source_type=type_filter if type_filter != "全て" else None,
-        source_system=system_filter if system_filter != "全て" else None,
     )
 
 
-col_f1, col_f2 = st.columns(2)
-with col_f1:
-    type_filter = st.selectbox("種別フィルタ", ["全て", "procedure", "ticket", "config", "log"], key="filter_type")
-with col_f2:
-    system_filter = st.text_input("システムフィルタ", value="全て", key="filter_system")
+type_filter = st.selectbox("種別フィルタ", ["全て", "wiki", "issue"], key="filter_type")
 
 try:
-    docs = load_documents(type_filter, system_filter)
+    docs = load_documents(type_filter)
 
     if docs:
         for doc in docs:
-            col_a, col_b, col_c, col_d, col_e = st.columns([2, 3, 2, 1, 1])
+            col_a, col_b, col_c, col_d = st.columns([2, 4, 1, 1])
             col_a.write(doc["source_type"])
             col_b.write(doc["title"])
-            col_c.write(doc.get("source_system", ""))
-            col_d.write(str(doc.get("chunk_count", 0)))
+            col_c.write(str(doc.get("chunk_count", 0)))
 
-            if col_e.button("🗑", key=f"del_{doc['id']}"):
+            if col_d.button("🗑", key=f"del_{doc['id']}"):
                 try:
                     from src import db as db_module
                     from src.config import config as app_config
@@ -106,17 +96,16 @@ try:
                         vstore = VectorStore()
                         vstore.delete(doc["source_type"], vector_ids)
 
-                    # data/knowledge/ からも削除（sync.py との整合性）
+                    # data/knowledge/ からも削除
                     ext_id = doc.get("external_id", "")
-                    sys_name = doc.get("source_system", "")
-                    if ext_id and sys_name:
-                        kf = Path(app_config.knowledge_path) / doc["source_type"] / sys_name / f"{ext_id}.md"
+                    stype = doc["source_type"]
+                    if ext_id:
+                        kf = Path(app_config.knowledge_path) / stype / f"{ext_id}.md"
                         kf.unlink(missing_ok=True)
 
                     # data/raw/ からも削除
                     storage = LocalStorage(app_config.raw_storage_path)
-                    raw_path = f"{doc['source_type']}/{sys_name}/{ext_id}.md"
-                    storage.delete(raw_path)
+                    storage.delete(f"{stype}/{ext_id}.md")
 
                     st.success(f"削除しました: {doc['title']}")
                     st.cache_data.clear()

@@ -42,14 +42,14 @@ class IngestionPipeline:
     ) -> dict[str, Any]:
         """
         単一ファイルを取り込む。
-        ticket_fields: source_type='ticket' の場合のみ
+        ticket_fields: source_type='issue' の場合のみ
         """
         src = Path(src_path)
         text = src.read_text(encoding="utf-8")
         content_hash = LocalStorage.hash_text(text)
 
         # 1. 原本をstorageへ
-        dest_relpath = f"{source_type}/{source_system}/{external_id}{src.suffix}"
+        dest_relpath = f"{source_type}/{external_id}{src.suffix}"
         self.storage.save(src, dest_relpath)
 
         # 2. メタDBへupsert
@@ -73,7 +73,7 @@ class IngestionPipeline:
             self.vstore.delete(source_type, old_vec_ids)
 
         # 4. ticketフィールドの保存
-        if source_type == "ticket" and ticket_fields:
+        if source_type == "issue" and ticket_fields:
             db.upsert_ticket(document_id=doc_id, **ticket_fields)
 
         # 5. チャンク分割

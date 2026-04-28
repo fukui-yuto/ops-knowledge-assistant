@@ -42,7 +42,7 @@ ops-knowledge-assistant/
 │   ├── db.py                # PostgreSQL アクセス層
 │   ├── vector_store.py      # ChromaDB ラッパー
 │   ├── chunking.py          # ソース種別ごとのチャンク戦略
-│   ├── embedding.py         # Gemini Embedding
+│   ├── embedding.py         # Embedding（Gemini / OpenAI）
 │   ├── storage.py           # 原本ファイルストレージ
 │   ├── ingestion.py         # 取り込みパイプライン
 │   ├── retriever.py         # ベクトル検索
@@ -62,10 +62,8 @@ ops-knowledge-assistant/
 ├── data/
 │   ├── templates/           # テンプレート手順書（Git管理対象）
 │   ├── knowledge/           # ナレッジ配置ディレクトリ（ユーザーがここにファイルを置く）
-│   │   ├── procedure/{source_system}/*.md
-│   │   ├── ticket/{source_system}/*.md
-│   │   ├── config/{source_system}/*.md
-│   │   └── log/{source_system}/*.md
+│   │   ├── wiki/*.md        # Wiki（運用手順書・ナレッジ記事）
+│   │   └── issue/*.md       # Issue（障害対応記録・インシデント履歴）
 │   ├── raw/                 # 取り込み済み原本（gitignore）
 │   └── chroma/              # ChromaDB 永続化（gitignore）
 ├── .env.example
@@ -126,7 +124,9 @@ ops-knowledge-assistant/
 ## 主要な設計判断
 - `document_id`（UUID）が PostgreSQL ⇔ ChromaDB の結合キー
 - テンプレートはファイルベース（`data/templates/*.md`）、DBには入れない
-- ナレッジは `data/knowledge/{source_type}/{source_system}/` に置くだけで自動取り込み（watchdog がファイル変更を検知し自動同期）
+- ナレッジは `data/knowledge/{source_type}/` に置くだけで自動取り込み（watchdog がファイル変更を検知し自動同期）
+- source_type は `wiki`（手順書・ナレッジ）と `issue`（障害対応記録）の2種類
+- 将来的に GitLab Wiki / Issues と同期予定
 - 原本ファイルはベクトルDBとは別管理（再Embedding のため）
 - `content_hash`（SHA256）で差分検知、未変更ファイルはスキップ
 - ChromaDB のコレクションは `source_type` 単位で分離（フィルタ検索精度向上）

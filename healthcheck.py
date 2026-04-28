@@ -28,7 +28,7 @@ def check_chroma() -> bool:
         from src.vector_store import VectorStore
 
         vstore = VectorStore()
-        vstore._collection("procedure")
+        vstore._collection("wiki")
         return True
     except Exception as e:
         print(f"[NG] ChromaDB: {e}", file=sys.stderr)

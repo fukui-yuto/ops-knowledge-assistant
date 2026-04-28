@@ -58,7 +58,7 @@ if st.button("チェック実行"):
         from src.vector_store import VectorStore
         vstore = VectorStore()
         results = []
-        for stype in ["procedure", "ticket", "config", "log"]:
+        for stype in ["wiki", "issue"]:
             try:
                 col = vstore._collection(stype)
                 count = col.count()

@@ -33,7 +33,7 @@
 | DB | db.py | PostgreSQL CRUD | Config |
 | VectorStore | vector_store.py | ChromaDB操作（追加・削除・検索） | Config |
 | Chunking | chunking.py | source_typeごとのチャンク分割戦略 | Config |
-| Embedding | embedding.py | Gemini Embedding API呼び出し | Config |
+| Embedding | embedding.py | Embedding API呼び出し（Gemini / OpenAI） | Config |
 | Ingestion | ingestion.py | 取り込みパイプライン統合 | Storage, DB, VectorStore, Chunking, Embedding |
 | Retriever | retriever.py | ベクトル検索 + ドキュメント全文取得 | DB, VectorStore, Embedding |
 | Generator | generator.py | LLM手順書生成 | Retriever, Config |
@@ -51,15 +51,12 @@
 
 ```
 data/knowledge/
-├── procedure/{source_system}/{ファイル名}.md
-├── ticket/{source_system}/{ファイル名}.md
-├── config/{source_system}/{ファイル名}.md
-└── log/{source_system}/{ファイル名}.md
+├── wiki/{ファイル名}.md       # 運用手順書・ナレッジ記事
+└── issue/{ファイル名}.md      # 障害対応記録・インシデント履歴
 ```
 
 メタデータはフォルダ構造とファイル内容から自動推定:
-- `source_type` ← 第1階層フォルダ名
-- `source_system` ← 第2階層フォルダ名
+- `source_type` ← 第1階層フォルダ名（`wiki` または `issue`）
 - `external_id` ← ファイル名（拡張子除く）
 - `title` ← ファイル内の最初の `# 見出し`（なければファイル名）
 
@@ -74,7 +71,7 @@ uv run python sync.py  （または watchdog による自動実行）
   ├─1→ data/knowledge/ 配下を全走査
   │
   ├─2→ 各ファイルについて:
-  │     ├─ フォルダ構造から source_type / source_system を判定
+  │     ├─ フォルダ構造から source_type を判定
   │     ├─ ファイル名から external_id を生成
   │     └─ ファイル内 # 見出しから title を抽出
   │
@@ -94,7 +91,7 @@ uv run python sync.py  （または watchdog による自動実行）
 ```
 入力ファイル(.md)
   │
-  ├─1→ LocalStorage に原本コピー (data/raw/{type}/{system}/{id}.md)
+  ├─1→ LocalStorage に原本コピー (data/raw/{type}/{id}.md)
   │
   ├─2→ SHA256 ハッシュ計算 → 既存と比較
   │     ├─ unchanged → skip (ingestion_log に記録)
@@ -104,8 +101,8 @@ uv run python sync.py  （または watchdog による自動実行）
   │     (updated の場合は旧 chunks 削除)
   │
   ├─4→ source_type に応じたチャンク分割
-  │     ├─ procedure: Markdownヘッダ単位 → 大きければ再分割
-  │     ├─ ticket: 1チケット=1チャンク（大きければ分割）
+  │     ├─ wiki: Markdownヘッダ単位 → 大きければ再分割
+  │     ├─ issue: 1チケット=1チャンク（大きければ分割）
   │     └─ その他: RecursiveCharacterTextSplitter
   │
   ├─5→ Embedding（LLM_PROVIDERに応じてGemini or OpenAI）でベクトル化
@@ -126,7 +123,7 @@ uv run python sync.py  （または watchdog による自動実行）
   ├─2→ description 未指定時はタイトルをそのまま使用
   │
   ├─3→ クエリ = "{title} {description}" でベクトル検索
-  │     └─ ChromaDB procedures コレクションから上位N件取得
+  │     └─ ChromaDB wikis コレクションから上位N件取得
   │        └─ document_id で PostgreSQL から全文取得
   │
   ├─4→ プロンプト組み立て
@@ -156,10 +153,8 @@ documents (1) ──< ingestion_log  ... 取り込み履歴
 
 | Collection | 対象 source_type | 距離関数 |
 |---|---|---|
-| procedures | procedure | cosine |
-| tickets | ticket | cosine |
-| configs | config | cosine |
-| logs | log | cosine |
+| wikis | wiki | cosine |
+| issues | issue | cosine |
 
 metadata に格納するフィールド:
 - `document_id` (フィルタ・JOIN用)
@@ -171,9 +166,9 @@ metadata に格納するフィールド:
 
 ```
 data/raw/
-├── procedure/confluence/PROC-001.md
-├── ticket/jira/JIRA-123.md
-└── config/k8s/CFG-001.md
+├── wiki/server_setup.md
+├── wiki/backup_procedure.md
+└── issue/JIRA-123.md
 ```
 
 ## 5. 自動同期メカニズム

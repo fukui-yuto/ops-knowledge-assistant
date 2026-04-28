@@ -11,10 +11,8 @@ from .config import config
 
 # 用途別Collection
 COLLECTIONS = {
-    "procedure": "procedures",
-    "ticket": "tickets",
-    "config": "configs",
-    "log": "logs",
+    "wiki": "wikis",
+    "issue": "issues",
 }
 
 

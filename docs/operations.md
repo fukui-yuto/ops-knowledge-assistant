@@ -87,16 +87,27 @@ psycopg2.OperationalError: could not connect to server
 3. `.env` の `PG_HOST`, `PG_PORT` が正しいか確認
 4. ファイアウォールで 5432 ポートが開いているか確認
 
-### 2.2 Gemini API エラー
+### 2.2 LLM API エラー
 
+**Gemini の場合**:
 ```
 google.api_core.exceptions.PermissionDenied: 403
 ```
 
 **対処**:
 1. `.env` の `GOOGLE_API_KEY` が設定されているか確認
-2. APIキーが有効か Google Cloud Console で確認
+2. APIキーが有効か Google AI Studio で確認
 3. Gemini API が有効化されているか確認
+
+**OpenAI の場合**:
+```
+openai.AuthenticationError: 401
+```
+
+**対処**:
+1. `.env` の `OPENAI_API_KEY` が設定されているか確認
+2. APIキーが有効か OpenAI Platform で確認
+3. `LLM_PROVIDER=openai` が設定されているか確認
 
 ### 2.3 ChromaDB エラー
 
@@ -169,7 +180,7 @@ uv run python healthcheck.py
 |---|---|---|
 | PostgreSQL 接続 | `healthcheck.py` / `docker compose ps` | 応答なし → アラート |
 | ChromaDB ヘルス | `healthcheck.py` | エラー → アラート |
-| Gemini API | `healthcheck.py` | キー未設定 → アラート |
+| LLM API | `healthcheck.py` | キー未設定 → アラート |
 | ディスク使用量 | `df -h` / `docker system df` | 80%超 → 警告 |
 | 取り込みエラー率 | `sync.py --check` / GUI 設定ページ | エラー頻発 → 警告 |
 

@@ -1,4 +1,4 @@
-"""Retrieval layer: search related past procedures from ChromaDB."""
+"""Retrieval layer: search related knowledge from ChromaDB."""
 from __future__ import annotations
 
 from typing import Any
@@ -18,7 +18,7 @@ class Retriever:
     def search(
         self,
         query: str,
-        source_type: str = "procedure",
+        source_type: str = "wiki",
         n_results: int = 5,
         where: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
@@ -70,14 +70,14 @@ class Retriever:
 
         return hits
 
-    def search_procedures(
+    def search_wiki(
         self,
         query: str,
         n_results: int = 5,
         where: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
-        """後方互換エイリアス。procedure コレクションを検索する。"""
-        return self.search(query, source_type="procedure", n_results=n_results, where=where)
+        """wiki コレクションを検索する。"""
+        return self.search(query, source_type="wiki", n_results=n_results, where=where)
 
     def get_full_document_text(self, document_id: str) -> str:
         """ドキュメントの全チャンクを結合して全文を返す。"""
@@ -102,7 +102,7 @@ class Retriever:
         クエリに関連する過去手順をドキュメント単位で取得する。
         チャンク検索→ドキュメントID特定→全文取得。
         """
-        hits = self.search_procedures(query, n_results=max_docs * 2)
+        hits = self.search_wiki(query, n_results=max_docs * 2)
 
         # ドキュメント単位で重複排除
         seen: set[str] = set()

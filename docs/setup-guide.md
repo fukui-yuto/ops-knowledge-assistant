@@ -132,30 +132,21 @@ docker compose exec app uv run python sync.py --init-schema
 
 ```
 data/knowledge/
-├── procedure/              # 過去の手順書
-│   ├── confluence/         # 出元システム名（自由に命名可能）
-│   │   ├── server_setup.md
-│   │   └── backup_config.md
-│   └── internal/
-│       └── deploy_flow.md
-├── ticket/                 # 過去のチケット・障害対応記録
-│   └── jira/
-│       └── JIRA-123.md
-├── config/                 # 構成情報
-│   └── k8s/
-│       └── cluster_config.md
-└── log/                    # ログパターン
-    └── app/
-        └── error_patterns.md
+├── wiki/                   # 運用手順書・ナレッジ記事
+│   ├── server_setup.md
+│   ├── backup_config.md
+│   └── deploy_flow.md
+└── issue/                  # 障害対応記録・インシデント履歴
+    ├── JIRA-123.md
+    └── disk_full_incident.md
 ```
 
 **ルール**:
-- 1階層目: `procedure`, `ticket`, `config`, `log` のいずれか（種別）
-- 2階層目: 出元システム名（confluence, jira, internal 等、自由に命名可能）
-- 3階層目: Markdown ファイル（`.md`）
+- 1階層目: `wiki`, `issue` のいずれか（種別）
+- 2階層目: Markdown ファイル（`.md`）
 - ファイルの先頭に `# タイトル` を書くと、タイトルとして自動抽出されます
 
-**ファイルの例** (`data/knowledge/procedure/internal/backup_procedure.md`):
+**ファイルの例** (`data/knowledge/wiki/backup_procedure.md`):
 ```markdown
 # PostgreSQL バックアップ手順
 
@@ -183,8 +174,8 @@ uv run python sync.py
 出力例:
 ```
 [sync] ./data/knowledge を走査中...
-[add]    procedure/internal/backup_procedure.md → "PostgreSQL バックアップ手順" (3 chunks)
-[add]    ticket/jira/JIRA-123.md → "Pod CrashLoopBackOff" (1 chunks)
+[add]    wiki/backup_procedure.md → "PostgreSQL バックアップ手順" (3 chunks)
+[add]    issue/JIRA-123.md → "Pod CrashLoopBackOff" (1 chunks)
 [sync] 完了: 追加 2, 更新 0, スキップ 0, 削除 0
 ```
 

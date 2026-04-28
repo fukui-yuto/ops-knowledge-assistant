@@ -16,7 +16,7 @@ try:
     templates = generator.list_templates()
 except Exception as e:
     st.error(f"初期化エラー: {e}")
-    st.info("GOOGLE_API_KEY が .env に設定されているか確認してください。")
+    st.info("APIキー（GOOGLE_API_KEY または OPENAI_API_KEY）が .env に設定されているか確認してください。")
     st.stop()
 
 # --- 生成フォーム ---

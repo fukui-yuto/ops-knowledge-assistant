@@ -65,8 +65,8 @@ def chunk_generic(text: str) -> list[str]:
 
 
 def chunk_by_source_type(source_type: str, text: str) -> list[str]:
-    if source_type == "procedure":
+    if source_type == "wiki":
         return chunk_procedure(text)
-    if source_type == "ticket":
+    if source_type == "issue":
         return chunk_ticket(text)
     return chunk_generic(text)

@@ -7,7 +7,7 @@ Web GUI またはコマンドライン、どちらからでも操作可能。
 
 ```
 1. テンプレート手順書を配置      → data/templates/
-2. 過去手順をフォルダに置く      → data/knowledge/procedure/confluence/ 等
+2. 過去手順をフォルダに置く      → data/knowledge/wiki/ または issue/
 3. 自動同期（ファイル監視で即時取り込み、GUIアップロードも可）→ PostgreSQL + ChromaDB
 4. 手順書タイトルを入力          → LLMがテンプレ + 過去手順を参考に自動生成
 ```
@@ -48,13 +48,13 @@ uv run pytest tests/ -v
 
 ```bash
 # ファイルを置くだけ（GUI起動中はwatchdogが自動検知して同期）
-cp my_procedure.md data/knowledge/procedure/confluence/
+cp my_procedure.md data/knowledge/wiki/
 
 # 手動で同期する場合
 uv run python sync.py
 ```
 
-フォルダ構造から source_type / source_system を自動判定。
+フォルダ構造から source_type を自動判定。
 ファイル内の `# 見出し` からタイトルを自動抽出。
 GUI（Streamlit）起動中は watchdog がファイル変更を監視し、自動で同期を実行。
 
@@ -79,11 +79,13 @@ uv run python generate.py "K8s Pod再起動手順" \
 
 ```
 data/knowledge/
-├── procedure/confluence/server_setup.md
-├── procedure/internal/deploy_flow.md
-├── ticket/jira/JIRA-123.md
-├── config/k8s/cluster_config.md
-└── log/app/error_patterns.md
+├── wiki/                    # 運用手順書・ナレッジ記事
+│   ├── server_setup.md
+│   ├── backup_procedure.md
+│   └── deploy_flow.md
+└── issue/                   # 障害対応記録・インシデント履歴
+    ├── JIRA-123.md
+    └── disk_full_incident.md
 ```
 
 ## ドキュメント
@@ -106,7 +108,7 @@ data/knowledge/
 [ナレッジ]    data/knowledge/      ユーザーがここにファイルを置く
 [原本]        data/raw/            取り込み済みファイル(LocalStorage)
 [メタDB]      PostgreSQL           documents / chunks / tickets
-[ベクトルDB]  ChromaDB             collection: procedures, tickets, configs, logs
+[ベクトルDB]  ChromaDB             collection: wikis, issues
 [生成]        Gemini / OpenAI     テンプレ + 過去手順 + 指示 → 新規手順書
 [GUI]         Streamlit            ブラウザで全操作可能
 ```

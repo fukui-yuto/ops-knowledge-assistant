@@ -14,11 +14,11 @@
 **ユーザーの操作は最小限にする。**
 
 ### 取り込み（ユーザーがやること）
-1. `data/knowledge/{source_type}/{source_system}/` にMarkdownファイルを置く
-2. `python sync.py` を実行する
+1. `data/knowledge/{source_type}/` にMarkdownファイルを置く
+2. `python sync.py` を実行する（GUI起動中は watchdog が自動同期）
 
 これだけで、ファイル名からexternal_id、ファイル内の `# 見出し` からタイトルを自動抽出し、
-フォルダ構造から source_type / source_system を自動判定して取り込む。
+フォルダ構造から source_type を自動判定して取り込む。
 
 ### 生成（ユーザーがやること）
 1. `python generate.py "PostgreSQL バックアップ手順"` を実行する
@@ -35,7 +35,6 @@
 | F-ING-002 | ディレクトリ一括取り込み（`python sync.py` 一発）ができる | Must |
 | F-ING-003 | 取り込み時にcontent_hashで差分検知し、未変更ファイルはスキップする | Must |
 | F-ING-004 | source_type はフォルダ構造から自動判定する（`data/knowledge/{source_type}/`） | Must |
-| F-ING-005 | source_system はフォルダ構造から自動判定する（`data/knowledge/{source_type}/{source_system}/`） | Must |
 | F-ING-006 | タイトルはファイル内の最初の `# 見出し` から自動抽出する。見出しがなければファイル名を使用する | Must |
 | F-ING-007 | external_id はファイル名（拡張子除く）から自動生成する | Must |
 | F-ING-008 | チケットには severity / status / affected_system 等の構造化フィールドを保持できる（Markdown frontmatter対応） | Should |
@@ -80,7 +79,7 @@
 | ID | 要件 | 優先度 |
 |---|---|---|
 | F-RET-001 | 自然言語クエリでベクトル類似検索ができる | Must |
-| F-RET-002 | source_type / source_system でフィルタリングできる | Must |
+| F-RET-002 | source_type でフィルタリングできる | Must |
 | F-RET-003 | チャンク単位の検索結果からドキュメント全文を取得できる | Must |
 | F-RET-004 | ハイブリッド検索（ベクトル + キーワード）ができる | Could |
 | F-RET-005 | 検索結果のリランキングができる | Could |
@@ -148,8 +147,7 @@
 | 過去手順 | 既存の運用手順書。ナレッジベースとして取り込み済みのもの |
 | チャンク | ドキュメントを分割した単位。ベクトル検索・LLMコンテキストの基本単位 |
 | ナレッジディレクトリ | `data/knowledge/` 配下のフォルダ。ここにファイルを置くだけで取り込み対象になる |
-| source_type | ドキュメント種別: procedure / ticket / config / log |
-| source_system | ドキュメントの出元システム: confluence / jira / k8s 等 |
+| source_type | ドキュメント種別: wiki / issue |
 | Ingestion | ドキュメントの取り込み処理（保存→チャンク→Embedding→DB登録） |
 | Generation | テンプレ + 過去手順 + 指示 → LLMで新規手順書を生成する処理 |
 
@@ -176,7 +174,7 @@
 3. ファイルに保存される
 
 ### UC-003: 過去手順の取り込み（最小操作）
-1. ユーザーが `data/knowledge/procedure/confluence/` にMarkdownファイルを配置する
+1. ユーザーが `data/knowledge/wiki/` にMarkdownファイルを配置する
 2. ユーザーが `python sync.py` を実行する
 3. システムがフォルダ構造からメタデータを自動判定し、取り込みを実行する
 
@@ -197,34 +195,26 @@
 
 ## 8. ナレッジディレクトリ規約
 
-ユーザーが手順書を配置するディレクトリの構造:
+ユーザーが手順書を配置するディレクトリの構造（2階層）:
 
 ```
 data/knowledge/
-├── procedure/              # source_type = procedure
-│   ├── confluence/         # source_system = confluence
-│   │   ├── server_setup.md     # external_id = server_setup, タイトルはファイル内#見出しから
-│   │   └── backup_config.md
-│   └── internal/           # source_system = internal
-│       └── deploy_flow.md
-├── ticket/                 # source_type = ticket
-│   └── jira/               # source_system = jira
-│       ├── JIRA-123.md
-│       └── JIRA-456.md
-├── config/                 # source_type = config
-│   └── k8s/
-│       └── cluster_config.md
-└── log/                    # source_type = log
-    └── app/
-        └── error_patterns.md
+├── wiki/                   # source_type = wiki（運用手順書・ナレッジ記事）
+│   ├── server_setup.md     # external_id = server_setup, タイトルはファイル内#見出しから
+│   ├── backup_config.md
+│   └── deploy_flow.md
+└── issue/                  # source_type = issue（障害対応記録・インシデント履歴）
+    ├── JIRA-123.md
+    └── disk_full_incident.md
 ```
+
+将来的に GitLab Wiki / Issues と同期予定のため、種別を wiki / issue に統一している。
 
 ### 自動推定ルール
 
 | メタデータ | 推定元 | 例 |
 |---|---|---|
-| source_type | 第1階層フォルダ名 | `procedure/` → `procedure` |
-| source_system | 第2階層フォルダ名 | `confluence/` → `confluence` |
+| source_type | 第1階層フォルダ名 | `wiki/` → `wiki` |
 | external_id | ファイル名（拡張子除く） | `server_setup.md` → `server_setup` |
 | title | ファイル内の最初の `# 見出し` | `# サーバー構築手順` → `サーバー構築手順` |
 | title (フォールバック) | ファイル名をヒューマンリーダブルに変換 | `server_setup` → `server setup` |
