@@ -15,7 +15,8 @@ env/
 # Data (raw files, embeddings, knowledge, outputs)
 data/raw/
 data/chroma/
-data/knowledge/
+data/knowledge/**
+!data/knowledge/README.md
 output/
 pgdata/
 
