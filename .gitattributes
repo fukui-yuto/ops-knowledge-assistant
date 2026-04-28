@@ -1,0 +1,7 @@
+# テキストファイルはLFで統一（OS問わず）
+* text=auto eol=lf
+
+# バイナリファイル
+*.png binary
+*.jpg binary
+*.ico binary
