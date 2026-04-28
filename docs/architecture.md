@@ -4,37 +4,24 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    CLI / Future Web UI                    │
-│  ingest_cli.py    generate_cli.py    (future: FastAPI)   │
-└──────┬──────────────────┬───────────────────────────────┘
-       │                  │
-       v                  v
-┌──────────────┐  ┌───────────────┐
-│  Ingestion   │  │   Generator   │
-│  Pipeline    │  │  (LLM生成)    │
-│              │  │               │
-│ ingestion.py │  │ generator.py  │
-└──┬───┬───┬───┘  └──┬────┬──────┘
-   │   │   │         │    │
-   │   │   │         │    v
-   │   │   │         │  ┌──────────────┐
-   │   │   │         └─>│  Retriever   │
-   │   │   │            │  (検索層)     │
-   │   │   │            │ retriever.py  │
-   │   │   │            └──┬────┬──────┘
-   │   │   │               │    │
-   v   v   v               v    v
-┌────┐┌─────┐┌───────┐┌─────┐┌─────────┐
-│Raw ││Chunk││Embed  ││VecDB││MetaDB   │
-│Store││ing  ││ding   ││     ││         │
-│    ││     ││       ││Chrom││Postgres │
-│stor-││chunk││embedd-││aDB  ││         │
-│age  ││ing  ││ing    ││     ││ db.py   │
-│.py  ││.py  ││.py    ││vec- ││         │
-│    ││     ││       ││tor_ ││         │
-│    ││     ││       ││store││         │
-│    ││     ││       ││.py  ││         │
-└────┘└─────┘└───────┘└─────┘└─────────┘
+│                     フロントエンド                        │
+│  Web GUI (Streamlit)    CLI (sync.py / generate.py)     │
+└──────┬──────────────────────┬───────────────────────────┘
+       │                      │
+       v                      v
+┌──────────────────────────────────────────────────────────┐
+│                     コアエンジン                          │
+│  ┌──────────┐  ┌───────────┐  ┌──────────────┐          │
+│  │ Ingestion│  │ Generator │  │   Retriever  │          │
+│  │ Pipeline │  │ (LLM生成) │  │  (検索層)    │          │
+│  └──┬───┬───┘  └──┬────┬───┘  └──┬────┬─────┘          │
+│     │   │         │    │         │    │                  │
+│     v   v         v    v         v    v                  │
+│  ┌────┐┌─────┐┌───────┐┌───────────┐┌─────────────┐    │
+│  │Raw ││Chunk││Embed  ││ VectorStore││  MetaDB     │    │
+│  │Stor││ing  ││ding   ││ (ChromaDB) ││ (PostgreSQL)│    │
+│  └────┘└─────┘└───────┘└───────────┘└─────────────┘    │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ## 2. コンポーネント一覧
@@ -50,12 +37,55 @@
 | Ingestion | ingestion.py | 取り込みパイプライン統合 | Storage, DB, VectorStore, Chunking, Embedding |
 | Retriever | retriever.py | ベクトル検索 + ドキュメント全文取得 | DB, VectorStore, Embedding |
 | Generator | generator.py | LLM手順書生成 | Retriever, Config |
-| IngestCLI | ingest_cli.py | 取り込みコマンドライン | Ingestion, DB |
-| GenerateCLI | generate_cli.py | 生成コマンドライン | Generator |
+| SyncCLI | sync.py | ナレッジ同期（メイン取り込み手段） | Ingestion, DB |
+| GenerateCLI | generate.py | 手順書生成CLI | Generator |
+| IngestCLI | ingest_cli.py | 単体取り込みCLI（高度な操作用） | Ingestion, DB |
+| WebGUI | app.py | StreamlitベースのWeb GUI | Generator, Ingestion, Retriever |
 
 ## 3. データフロー
 
-### 3.1 取り込みフロー (Ingestion)
+### 3.1 ナレッジディレクトリ規約
+
+ユーザーが `data/knowledge/` にファイルを置くだけで取り込み対象になる:
+
+```
+data/knowledge/
+├── procedure/{source_system}/{ファイル名}.md
+├── ticket/{source_system}/{ファイル名}.md
+├── config/{source_system}/{ファイル名}.md
+└── log/{source_system}/{ファイル名}.md
+```
+
+メタデータはフォルダ構造とファイル内容から自動推定:
+- `source_type` ← 第1階層フォルダ名
+- `source_system` ← 第2階層フォルダ名
+- `external_id` ← ファイル名（拡張子除く）
+- `title` ← ファイル内の最初の `# 見出し`（なければファイル名）
+
+### 3.2 同期フロー (sync.py)
+
+```
+python sync.py
+  │
+  ├─1→ data/knowledge/ 配下を全走査
+  │
+  ├─2→ 各ファイルについて:
+  │     ├─ フォルダ構造から source_type / source_system を判定
+  │     ├─ ファイル名から external_id を生成
+  │     └─ ファイル内 # 見出しから title を抽出
+  │
+  ├─3→ DB の documents と照合:
+  │     ├─ 未登録 → Ingestion Pipeline で新規取り込み
+  │     ├─ 登録済み＆ハッシュ不一致 → 再取り込み（旧データ削除→新規登録）
+  │     └─ 登録済み＆ハッシュ一致 → スキップ
+  │
+  └─4→ DB にあるが knowledge/ に存在しないファイル → 連動削除
+        ├─ PostgreSQL: documents DELETE (CASCADE → chunks, tickets)
+        ├─ ChromaDB: vectors DELETE
+        └─ LocalStorage: raw ファイル削除
+```
+
+### 3.3 取り込みフロー (Ingestion Pipeline)
 
 ```
 入力ファイル(.md)
@@ -81,24 +111,27 @@
   └─7→ ChromaDB に追加 (同じ vector_id, metadata付き)
 ```
 
-### 3.2 生成フロー (Generation)
+### 3.4 生成フロー (Generation)
 
 ```
-ユーザー入力 (title, description, template_name, extra_context)
+ユーザー入力 (title のみでOK)
   │
-  ├─1→ テンプレート読み込み (data/templates/{name}.md)
+  ├─1→ テンプレート自動選定（タイトルキーワード → テンプレート名照合）
+  │     └─ 該当なし → default.md
   │
-  ├─2→ クエリ = "{title} {description}" でベクトル検索
+  ├─2→ description 未指定時はタイトルをそのまま使用
+  │
+  ├─3→ クエリ = "{title} {description}" でベクトル検索
   │     └─ ChromaDB procedures コレクションから上位N件取得
   │        └─ document_id で PostgreSQL から全文取得
   │
-  ├─3→ プロンプト組み立て
+  ├─4→ プロンプト組み立て
   │     ├─ システムプロンプト（手順書作成の専門家ロール）
   │     ├─ テンプレート（構成の指示）
   │     ├─ 関連過去手順（参考資料）
   │     └─ ユーザー指示（タイトル・説明・追加情報）
   │
-  └─4→ Gemini 2.0 Flash で生成 → Markdown出力
+  └─5→ Gemini 2.0 Flash で生成 → Markdown出力
 ```
 
 ## 4. データストア設計
@@ -134,20 +167,32 @@ metadata に格納するフィールド:
 
 ```
 data/raw/
-├── procedure/
-│   └── confluence/
-│       ├── PROC-001.md
-│       └── PROC-002.md
-├── ticket/
-│   └── jira/
-│       ├── JIRA-123.md
-│       └── JIRA-456.md
-└── config/
-    └── proxmox/
-        └── CFG-001.md
+├── procedure/confluence/PROC-001.md
+├── ticket/jira/JIRA-123.md
+└── config/proxmox/CFG-001.md
 ```
 
-## 5. 技術選定理由
+## 5. 自動同期メカニズム
+
+ドキュメントの追加・更新・削除が発生した際、全データストアが自動的に同期される。
+
+### 5.1 同期対象
+
+| 操作 | PostgreSQL | ChromaDB | LocalStorage |
+|---|---|---|---|
+| ファイル追加 | documents + chunks INSERT | vectors ADD | ファイルコピー |
+| ファイル更新 | documents UPDATE, chunks 再作成 | 旧vectors DELETE + 新ADD | ファイル上書き |
+| ファイル削除 | documents DELETE (CASCADE) | vectors DELETE | ファイル削除 |
+
+### 5.2 整合性チェック
+
+`python sync.py --check` で以下の不整合を検出する:
+- PostgreSQL にあるが ChromaDB にない vectors
+- ChromaDB にあるが PostgreSQL にない vectors
+- PostgreSQL にあるが LocalStorage にないファイル
+- LocalStorage にあるが PostgreSQL にないファイル
+
+## 6. 技術選定理由
 
 | 技術 | 選定理由 | 代替候補 |
 |---|---|---|
@@ -157,60 +202,16 @@ data/raw/
 | Gemini 2.0 Flash | 高速・低コスト、日本語手順書生成に十分な品質 | GPT-4o, Claude（品質重視時） |
 | LangChain text-splitters | Markdownヘッダ分割対応、実績あり | 自前実装 |
 | psycopg2 | PostgreSQLドライバの標準、安定性 | asyncpg（非同期化時） |
-
-## 6. 自動同期メカニズム
-
-ドキュメントの追加・更新・削除が発生した際、全データストアが自動的に同期される。
-
-### 6.1 同期フロー
-
-```
-ファイル変更検知 (sync_cli.py --watch / --sync)
-  │
-  ├─ 新規ファイル検出 → Ingestion Pipeline → DB + ChromaDB + Storage に追加
-  │
-  ├─ ファイル更新検出 → content_hash 比較
-  │   └─ 変更あり → 旧chunks/vectors削除 → 再取り込み
-  │
-  └─ ファイル削除検出 → DB documents 削除 (CASCADE)
-                       → ChromaDB vectors 削除
-                       → LocalStorage ファイル削除
-```
-
-### 6.2 同期対象
-
-| 操作 | PostgreSQL | ChromaDB | LocalStorage |
-|---|---|---|---|
-| ファイル追加 | documents + chunks INSERT | vectors ADD | ファイルコピー |
-| ファイル更新 | documents UPDATE, chunks 再作成 | 旧vectors DELETE + 新ADD | ファイル上書き |
-| ファイル削除 | documents DELETE (CASCADE) | vectors DELETE | ファイル削除 |
-
-### 6.3 整合性チェック
-
-`sync_cli.py --check` で以下の不整合を検出する:
-- PostgreSQL にあるが ChromaDB にない vectors
-- ChromaDB にあるが PostgreSQL にない vectors
-- PostgreSQL にあるが LocalStorage にないファイル
-- LocalStorage にあるが PostgreSQL にないファイル
+| Streamlit | Pythonのみ、高速プロトタイピング、データ系UI向き | Gradio, FastAPI+React |
 
 ## 7. 将来の拡張ポイント
 
-### Phase 2: Web API化
-```
-FastAPI
-├── POST /api/ingest       (ファイルアップロード取り込み)
-├── POST /api/generate     (手順書生成)
-├── GET  /api/search       (ナレッジ検索)
-├── GET  /api/templates    (テンプレート一覧)
-└── GET  /api/health       (ヘルスチェック)
-```
-
-### Phase 3: Agent化
+### Phase 2: Agent化
 - LangGraph ベースの Agent
 - ツール: 検索 / 生成 / 取り込み / 承認依頼
 - 対話的に手順書を改善するフロー
 
-### Phase 4: 外部連携
+### Phase 3: 外部連携
 - JIRA / Confluence API 自動同期
 - Slack Bot（手順書生成リクエスト・通知）
 - PDF / Confluence Wiki 形式へのエクスポート

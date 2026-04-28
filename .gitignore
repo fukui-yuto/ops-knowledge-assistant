@@ -12,9 +12,10 @@ build/
 venv/
 env/
 
-# Data (raw files, embeddings, outputs)
+# Data (raw files, embeddings, knowledge, outputs)
 data/raw/
 data/chroma/
+data/knowledge/
 output/
 pgdata/
 

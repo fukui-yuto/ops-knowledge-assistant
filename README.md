@@ -1,101 +1,83 @@
 # ops-knowledge-assistant
 
 テンプレート手順書と過去の運用手順をナレッジベースに取り込み、新規手順書をLLMで自動生成するシステム。
+Web GUI またはコマンドライン、どちらからでも操作可能。
 
 ## 仕組み
 
 ```
 1. テンプレート手順書を配置      → data/templates/
-2. 過去手順・チケットを取り込み   → PostgreSQL + ChromaDB
-3. 新規手順の生成を命令          → LLMがテンプレ + 過去手順を参考に自動生成
+2. 過去手順をフォルダに置く      → data/knowledge/procedure/confluence/ 等
+3. 同期（GUIアップロード or sync.py）→ PostgreSQL + ChromaDB に自動取り込み
+4. 手順書タイトルを入力          → LLMがテンプレ + 過去手順を参考に自動生成
 ```
 
-## アーキテクチャ
-
-```
-[テンプレート] data/templates/     テンプレート手順書(Markdown)
-[原本]        data/raw/            取り込み済みファイル(LocalStorage)
-[メタDB]      PostgreSQL           documents / chunks / tickets / ingestion_log
-[ベクトルDB]  ChromaDB             collection: procedures, tickets, configs, logs
-[生成]        Gemini 2.0 Flash     テンプレ + 過去手順 + 指示 → 新規手順書
-```
-
-詳細は [docs/architecture.md](docs/architecture.md) を参照。
-
-## セットアップ
+## クイックスタート
 
 ```bash
-# 依存パッケージ
+# セットアップ
 pip install -r requirements.txt
+cp .env.example .env          # GOOGLE_API_KEY を設定
 
-# PostgreSQL起動 (Docker例)
-docker run -d --name pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=log_assistant \
-    -p 5432:5432 -v $(pwd)/pgdata:/var/lib/postgresql/data postgres:16
+# GUI で使う場合（推奨）
+streamlit run app.py          # ブラウザで http://localhost:8501
 
-# 環境変数
-cp .env.example .env
-# .env を編集して GOOGLE_API_KEY を設定
+# CLI で使う場合
+python sync.py --init-schema  # 初回: DB初期化 + ナレッジ同期
+python generate.py "Proxmox バックアップ手順"
 ```
 
-詳細は [docs/operations.md](docs/operations.md) を参照。
+## GUI で操作（コマンド不要）
 
-## 使い方
+`streamlit run app.py` でブラウザから全操作が可能:
 
-### 1. 過去手順の取り込み
+| 画面 | できること |
+|---|---|
+| 手順書生成 | タイトルを入力 → 生成 → コピー/ダウンロード |
+| ナレッジ管理 | ファイルのアップロード・閲覧・削除 |
+| テンプレート | テンプレートの一覧・プレビュー |
+| 検索 | ナレッジベースの横断検索 |
+| 設定 | 接続状態確認・整合性チェック・DB初期化 |
+
+## CLI で操作
+
+### ナレッジの取り込み
 
 ```bash
-# スキーマ初期化 + 手順書取り込み
-python -m scripts.ingest_cli --init-schema \
-    --path data/sample/proc.md \
-    --source-type procedure \
-    --source-system confluence \
-    --external-id PROC-001 \
-    --title "Proxmox ノード追加手順"
-
-# チケット取り込み
-python -m scripts.ingest_cli \
-    --path data/sample/ticket-123.md \
-    --source-type ticket \
-    --source-system jira \
-    --external-id JIRA-123 \
-    --title "K8s Pod が CrashLoopBackOff" \
-    --metadata '{"system":"kubernetes","severity":"high"}' \
-    --ticket-fields '{"status":"resolved","severity":"high","affected_system":"kubernetes","resolved_at":"2026-04-10T12:00:00","resolution":"resource limit を増加して解消"}'
+# ファイルを置いて同期（これだけ）
+cp my_procedure.md data/knowledge/procedure/confluence/
+python sync.py
 ```
 
-### 2. 新規手順書の生成
+フォルダ構造から source_type / source_system を自動判定。
+ファイル内の `# 見出し` からタイトルを自動抽出。
+
+### 手順書の生成
 
 ```bash
-# テンプレート一覧
-python -m scripts.generate_cli --list-templates
-
-# 手順書を生成（stdout出力）
-python -m scripts.generate_cli \
-    --title "Proxmox バックアップ手順" \
-    --description "Proxmox VEの全VMを日次バックアップする手順を作成"
+# タイトルだけで生成（最小操作）
+python generate.py "Proxmox バックアップ手順"
 
 # ファイルに保存
-python -m scripts.generate_cli \
-    --title "K8s Pod再起動手順" \
-    --description "CrashLoopBackOffになったPodを安全に再起動する" \
-    --extra-context "対象クラスタはproduction、namespace=app" \
-    --output output/k8s_pod_restart.md
+python generate.py "Proxmox バックアップ手順" -o output/backup.md
+
+# 詳細指定
+python generate.py "K8s Pod再起動手順" \
+    -d "CrashLoopBackOffのPodを安全に再起動" \
+    -t k8s \
+    -c "対象: production" \
+    -o output/k8s_restart.md
 ```
 
-### 3. ディレクトリ同期（予定）
+## ナレッジディレクトリ構造
 
-```bash
-# ディレクトリ内のファイルを一括同期
-python -m scripts.sync_cli \
-    --dir procedures/ \
-    --source-type procedure \
-    --source-system confluence
-
-# ファイル変更の自動監視
-python -m scripts.sync_cli --dir procedures/ --source-type procedure --source-system confluence --watch
-
-# 整合性チェック
-python -m scripts.sync_cli --check
+```
+data/knowledge/
+├── procedure/confluence/server_setup.md
+├── procedure/internal/deploy_flow.md
+├── ticket/jira/JIRA-123.md
+├── config/proxmox/cluster_config.md
+└── log/app/error_patterns.md
 ```
 
 ## ドキュメント
@@ -104,37 +86,25 @@ python -m scripts.sync_cli --check
 |---|---|
 | [docs/requirements.md](docs/requirements.md) | 要件定義書 |
 | [docs/architecture.md](docs/architecture.md) | アーキテクチャ設計書 |
-| [docs/template-spec.md](docs/template-spec.md) | テンプレート仕様書 |
+| [docs/gui-spec.md](docs/gui-spec.md) | Web GUI 仕様書 |
 | [docs/api-spec.md](docs/api-spec.md) | CLI/API インターフェース仕様書 |
+| [docs/template-spec.md](docs/template-spec.md) | テンプレート仕様書 |
 | [docs/data-model.md](docs/data-model.md) | データモデル仕様書 |
 | [docs/operations.md](docs/operations.md) | 運用ガイド |
 
-## ディレクトリ構成
+## アーキテクチャ
 
 ```
-ops-knowledge-assistant/
-├── CLAUDE.md                # Claude Code 指示書
-├── README.md                # 本ファイル
-├── docs/                    # 設計ドキュメント・仕様書群
-├── config.py                # 設定管理（環境変数ベース）
-├── db.py                    # PostgreSQL アクセス層
-├── vector_store.py          # ChromaDB ラッパー
-├── chunking.py              # ソース種別ごとのチャンク戦略
-├── embedding.py             # Gemini Embedding
-├── storage.py               # 原本ファイルストレージ
-├── ingestion.py             # 取り込みパイプライン
-├── retriever.py             # ベクトル検索（関連手順取得）
-├── generator.py             # LLM手順書生成
-├── ingest_cli.py            # 取り込みCLI
-├── generate_cli.py          # 生成CLI
-├── schema.sql               # PostgreSQL DDL
-├── data/
-│   ├── templates/           # テンプレート手順書（Git管理）
-│   ├── raw/                 # 取り込み済み原本（gitignore）
-│   └── chroma/              # ChromaDB永続化（gitignore）
-├── requirements.txt
-└── .env.example
+[テンプレート] data/templates/     テンプレート手順書(Markdown)
+[ナレッジ]    data/knowledge/      ユーザーがここにファイルを置く
+[原本]        data/raw/            取り込み済みファイル(LocalStorage)
+[メタDB]      PostgreSQL           documents / chunks / tickets
+[ベクトルDB]  ChromaDB             collection: procedures, tickets, configs, logs
+[生成]        Gemini 2.0 Flash     テンプレ + 過去手順 + 指示 → 新規手順書
+[GUI]         Streamlit            ブラウザで全操作可能
 ```
+
+詳細は [docs/architecture.md](docs/architecture.md) を参照。
 
 ## 設計判断
 
@@ -143,7 +113,7 @@ ops-knowledge-assistant/
 | 原本を別管理 | LocalStorage | ベクトルDBは原本保存に向かない。再Embeddingに必須 |
 | chunksをPostgresに保存 | あり | Chromaが壊れても再構築可能、検索後の全文取得が高速 |
 | Collection分離 | source_type単位 | 用途別フィルタで検索精度向上 |
-| content_hash | SHA256 | 差分検知。未変更ファイルはスキップ |
-| document_id共有 | UUID | Postgres ⇔ Chroma の結合キー |
-| テンプレート | ファイルベース | DB管理不要、直接編集しやすい |
+| メタデータ自動推定 | フォルダ構造 + ファイル内容 | ユーザー入力を最小限にする |
+| テンプレート自動選定 | タイトルキーワード照合 | 指定不要で最適なテンプレートを使用 |
+| GUI | Streamlit | Pythonのみ、コマンド不要で全操作可能 |
 | データ自動同期 | 追加/削除時に全ストア連動 | staleデータを防止、整合性を保証 |
