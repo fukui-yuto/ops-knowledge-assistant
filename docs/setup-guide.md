@@ -136,7 +136,7 @@ data/knowledge/
 │   └── jira/
 │       └── JIRA-123.md
 ├── config/                 # 構成情報
-│   └── proxmox/
+│   └── k8s/
 │       └── cluster_config.md
 └── log/                    # ログパターン
     └── app/
@@ -151,18 +151,21 @@ data/knowledge/
 
 **ファイルの例** (`data/knowledge/procedure/internal/backup_procedure.md`):
 ```markdown
-# Proxmox バックアップ手順
+# PostgreSQL バックアップ手順
 
 ## 概要
-Proxmox VE のVM/CTを定期バックアップする手順。
+PostgreSQL データベースの定期バックアップ手順。
 
 ## 手順
 ### Step 1: バックアップ対象の確認
 ...
 ```
 
-### 4.2 同期を実行する
+### 4.2 同期する
 
+**GUI（Streamlit）起動中の場合**: ファイルを配置するだけで watchdog が自動検知して同期します。手動操作は不要です。
+
+**手動で同期する場合**:
 ```bash
 # Docker Compose環境
 docker compose exec app uv run python sync.py
@@ -174,7 +177,7 @@ uv run python sync.py
 出力例:
 ```
 [sync] ./data/knowledge を走査中...
-[add]    procedure/internal/backup_procedure.md → "Proxmox バックアップ手順" (3 chunks)
+[add]    procedure/internal/backup_procedure.md → "PostgreSQL バックアップ手順" (3 chunks)
 [add]    ticket/jira/JIRA-123.md → "Pod CrashLoopBackOff" (1 chunks)
 [sync] 完了: 追加 2, 更新 0, スキップ 0, 削除 0
 ```
@@ -196,7 +199,7 @@ uv run python sync.py --dry-run
 ### 基本（タイトルだけで生成）
 
 ```bash
-uv run python generate.py "Proxmox バックアップ手順"
+uv run python generate.py "PostgreSQL バックアップ手順"
 ```
 
 これだけで:
@@ -207,7 +210,7 @@ uv run python generate.py "Proxmox バックアップ手順"
 ### ファイルに保存
 
 ```bash
-uv run python generate.py "Proxmox バックアップ手順" -o output/backup.md
+uv run python generate.py "PostgreSQL バックアップ手順" -o output/backup.md
 ```
 
 ### 詳細指定

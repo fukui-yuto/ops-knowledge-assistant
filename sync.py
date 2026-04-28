@@ -111,9 +111,6 @@ def run_sync(
     existing_docs = db.get_all_external_ids()
     for (sys_name, ext_id), doc_id in existing_docs.items():
         if (sys_name, ext_id) not in file_keys:
-            if dry_run:
-                print(f"[dry-run] 削除対象: {sys_name}/{ext_id}")
-                continue
             try:
                 # source_type を取得してChromaDB からも削除
                 docs = db.fetch_documents_by_ids([doc_id])

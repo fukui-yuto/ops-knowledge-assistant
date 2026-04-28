@@ -38,6 +38,7 @@
                                 │ template_used        │
                                 │ reference_docs (JSONB)│
                                 │ model                │
+                                │ content              │
                                 │ output_path          │
                                 │ has_todos            │
                                 │ created_at           │
@@ -128,6 +129,7 @@
 | template_used | TEXT | NOT NULL | - | 使用したテンプレート名 |
 | reference_docs | JSONB | NOT NULL | `[]` | 参照した過去手順のリスト |
 | model | TEXT | NOT NULL | - | 使用したLLMモデル名 |
+| content | TEXT | NOT NULL | `''` | 生成した手順書の本文（履歴再ダウンロード用） |
 | output_path | TEXT | NULL | - | 出力ファイルパス |
 | has_todos | BOOLEAN | NOT NULL | false | TODO項目を含むか |
 | created_at | TIMESTAMP | NOT NULL | NOW() | 生成日時 |

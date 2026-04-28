@@ -13,7 +13,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS documents (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     source_type     TEXT NOT NULL,           -- 'procedure' | 'ticket' | 'config' | 'log'
-    source_system   TEXT,                    -- 'confluence' | 'jira' | 'proxmox' | 'k8s' 等
+    source_system   TEXT,                    -- 'confluence' | 'jira' | 'k8s' 等
     external_id     TEXT,                    -- 元システムでのID (例: JIRA-123)
     title           TEXT NOT NULL,
     file_path       TEXT NOT NULL,           -- 原本ストレージのパス

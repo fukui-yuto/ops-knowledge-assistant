@@ -34,17 +34,21 @@ else:
         placeholder="# {{title}}\n\n## 概要\n...",
     )
 
-if st.button("登録", disabled=not (template_name and template_content)):
+# 上書き確認用のチェックボックス
+overwrite = False
+if template_name and template_content:
     save_path = templates_dir / f"{template_name}.md"
     if save_path.exists():
-        st.warning(f"テンプレート「{template_name}」は既に存在します。上書きしますか？")
-        if st.button("上書き確認", key="overwrite_confirm"):
-            save_path.write_text(template_content, encoding="utf-8")
-            st.success(f"テンプレート「{template_name}」を上書きしました。")
-            st.rerun()
+        overwrite = st.checkbox(f"既存のテンプレート「{template_name}」を上書きする", key="overwrite_check")
+
+if st.button("登録", disabled=not (template_name and template_content)):
+    save_path = templates_dir / f"{template_name}.md"
+    if save_path.exists() and not overwrite:
+        st.warning(f"テンプレート「{template_name}」は既に存在します。上書きするにはチェックを入れてください。")
     else:
         save_path.write_text(template_content, encoding="utf-8")
-        st.success(f"テンプレート「{template_name}」を登録しました。")
+        action = "上書き" if save_path.exists() and overwrite else "登録"
+        st.success(f"テンプレート「{template_name}」を{action}しました。")
         st.rerun()
 
 # --- 一覧セクション ---

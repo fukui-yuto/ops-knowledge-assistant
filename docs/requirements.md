@@ -21,7 +21,7 @@
 フォルダ構造から source_type / source_system を自動判定して取り込む。
 
 ### 生成（ユーザーがやること）
-1. `python generate.py "Proxmox バックアップ手順"` を実行する
+1. `python generate.py "PostgreSQL バックアップ手順"` を実行する
 
 これだけで、テンプレート自動選定・関連手順自動検索・LLM生成が行われ、手順書が出力される。
 
@@ -41,7 +41,7 @@
 | F-ING-008 | チケットには severity / status / affected_system 等の構造化フィールドを保持できる（Markdown frontmatter対応） | Should |
 | F-ING-009 | 取り込み履歴を ingestion_log に記録する | Must |
 | F-ING-010 | 既存ドキュメント更新時、旧チャンク・ベクトルを自動削除して再取り込みする | Must |
-| F-ING-011 | ファイル追加・更新・削除を検知し自動で取り込み/削除する | Must |
+| F-ING-011 | ファイル追加・更新・削除を watchdog で自動検知し取り込み/削除する（GUI起動中） | Must |
 | F-ING-012 | ドキュメント削除時、PostgreSQL・ChromaDB・LocalStorageの全データを自動で連動削除する | Must |
 | F-ING-013 | 同期状態の整合性チェックコマンドを提供する（DB・ChromaDB・ファイルの不整合検出） | Should |
 | F-ING-014 | JIRA API からチケットを自動同期できる | Could |
@@ -133,7 +133,8 @@
 | 項目 | 制約 |
 |---|---|
 | LLM | Google Gemini API（初期）。APIキーに利用上限あり |
-| Embedding | text-embedding-004。768次元。バッチ上限あり |
+| SDK | google-genai（旧google-generativeaiは非推奨） |
+| Embedding | gemini-embedding-001。768次元。バッチ上限あり |
 | DB | PostgreSQL 16+。ローカル or Docker |
 | ベクトルDB | ChromaDB（組み込みモード）。大規模時はクライアント/サーバーモードに移行 |
 | ファイル形式 | 入力・出力ともMarkdown (.md) |
@@ -148,14 +149,14 @@
 | チャンク | ドキュメントを分割した単位。ベクトル検索・LLMコンテキストの基本単位 |
 | ナレッジディレクトリ | `data/knowledge/` 配下のフォルダ。ここにファイルを置くだけで取り込み対象になる |
 | source_type | ドキュメント種別: procedure / ticket / config / log |
-| source_system | ドキュメントの出元システム: confluence / jira / proxmox / k8s 等 |
+| source_system | ドキュメントの出元システム: confluence / jira / k8s 等 |
 | Ingestion | ドキュメントの取り込み処理（保存→チャンク→Embedding→DB登録） |
 | Generation | テンプレ + 過去手順 + 指示 → LLMで新規手順書を生成する処理 |
 
 ## 7. ユースケース
 
 ### UC-001: 新規手順書の作成（最小操作）
-1. ユーザーが `python generate.py "Proxmox バックアップ手順"` を実行する
+1. ユーザーが `python generate.py "PostgreSQL バックアップ手順"` を実行する
 2. システムがタイトルから最適なテンプレートを自動選定する
 3. システムが関連する過去手順をベクトル検索で取得する
 4. システムがLLMに（テンプレート + 過去手順 + タイトル）を渡す
@@ -165,11 +166,11 @@
 ### UC-002: 詳細指定で手順書を作成
 1. ユーザーが以下を実行する:
    ```
-   python generate.py "Proxmox バックアップ手順" \
-       --description "全VMを日次でPBSにバックアップ" \
+   python generate.py "PostgreSQL バックアップ手順" \
+       --description "全DBを日次でバックアップ" \
        --template default \
-       --context "対象: pve-node01" \
-       --output output/proxmox_backup.md
+       --context "対象: db-server01" \
+       --output output/pg_backup.md
    ```
 2. 指定されたテンプレート・説明・コンテキストに基づいて生成される
 3. ファイルに保存される
@@ -211,7 +212,7 @@ data/knowledge/
 │       ├── JIRA-123.md
 │       └── JIRA-456.md
 ├── config/                 # source_type = config
-│   └── proxmox/
+│   └── k8s/
 │       └── cluster_config.md
 └── log/                    # source_type = log
     └── app/

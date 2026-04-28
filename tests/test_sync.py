@@ -6,9 +6,9 @@ from sync import extract_title_from_md, scan_knowledge_dir
 
 def test_extract_title_from_md_with_heading():
     """# 見出しからタイトルを抽出できること。"""
-    text = "# Proxmox バックアップ手順\n\n## 概要\n..."
+    text = "# PostgreSQL バックアップ手順\n\n## 概要\n..."
     title = extract_title_from_md(text, "backup")
-    assert title == "Proxmox バックアップ手順"
+    assert title == "PostgreSQL バックアップ手順"
 
 
 def test_extract_title_from_md_no_heading():

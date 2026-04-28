@@ -27,12 +27,15 @@ if st.button("検索", disabled=not query):
             results = retriever.search(query, source_type=source_type_filter, n_results=n_results)
         else:
             results = []
+            search_errors = []
             for stype in ["procedure", "ticket", "config", "log"]:
                 try:
                     hits = retriever.search(query, source_type=stype, n_results=n_results)
                     results.extend(hits)
-                except Exception:
-                    pass
+                except Exception as search_err:
+                    search_errors.append(f"{stype}: {search_err}")
+            if search_errors:
+                st.warning(f"一部コレクションの検索に失敗: {', '.join(search_errors)}")
             results.sort(key=lambda x: x.get("distance", float("inf")))
             results = results[:n_results]
 

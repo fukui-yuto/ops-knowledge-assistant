@@ -47,11 +47,11 @@ LLMはテンプレートの構成に従って新規手順書を生成する。
 
 | プレースホルダ | 説明 | 例 |
 |---|---|---|
-| `{{title}}` | 手順書タイトル | Proxmox バックアップ手順 |
-| `{{system}}` | 対象システム名 | Proxmox VE |
-| `{{purpose}}` | 作業目的 | 全VMの日次バックアップ設定 |
+| `{{title}}` | 手順書タイトル | PostgreSQL バックアップ手順 |
+| `{{system}}` | 対象システム名 | PostgreSQL |
+| `{{purpose}}` | 作業目的 | データベースの日次バックアップ設定 |
 | `{{duration}}` | 想定所要時間 | 30分 |
-| `{{level}}` | 作業者レベル | 中級（Proxmox基本操作ができる） |
+| `{{level}}` | 作業者レベル | 中級（PostgreSQL基本操作ができる） |
 | `{{date}}` | 作成日 | 2026-04-28 |
 | `{{author}}` | 作成者 | ops-knowledge-assistant |
 
@@ -103,5 +103,5 @@ ssh user@target-server
 
 1. `data/templates/` に新しい `.md` ファイルを作成する
 2. 必須セクション（3.1）を含むMarkdownを記述する
-3. `python -m scripts.generate_cli --list-templates` で認識されることを確認する
+3. `uv run python generate.py --list-templates` で認識されることを確認する
 4. Git にコミットする

@@ -1,9 +1,10 @@
-"""Embedding generation. Uses Google text-embedding-004 by default."""
+"""Embedding generation. Uses Google gemini-embedding-001 by default."""
 from __future__ import annotations
 
 from typing import Protocol
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from .config import config
 
@@ -16,25 +17,25 @@ class GeminiEmbedder:
     def __init__(self):
         if not config.google_api_key:
             raise RuntimeError("GOOGLE_API_KEY is not set")
-        genai.configure(api_key=config.google_api_key)
+        self.client = genai.Client(api_key=config.google_api_key)
         self.model = config.embedding_model
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        # text-embedding-004 はバッチ可、ただし上限あり。安全側で1件ずつ。
+        # gemini-embedding-001 はバッチ可、ただし上限あり。安全側で1件ずつ。
         results: list[list[float]] = []
         for t in texts:
-            r = genai.embed_content(
+            r = self.client.models.embed_content(
                 model=self.model,
-                content=t,
-                task_type="retrieval_document",
+                contents=t,
+                config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
             )
-            results.append(r["embedding"])
+            results.append(list(r.embeddings[0].values))
         return results
 
     def embed_query(self, text: str) -> list[float]:
-        r = genai.embed_content(
+        r = self.client.models.embed_content(
             model=self.model,
-            content=text,
-            task_type="retrieval_query",
+            contents=text,
+            config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY"),
         )
-        return r["embedding"]
+        return list(r.embeddings[0].values)

@@ -11,7 +11,7 @@ from src.generator import ProcedureGenerator
 def main():
     parser = argparse.ArgumentParser(
         description="新規手順書を生成する",
-        usage="python generate.py \"タイトル\" [オプション]",
+        usage="uv run python generate.py \"タイトル\" [オプション]",
     )
     parser.add_argument("title", nargs="?", help="生成する手順書のタイトル")
     parser.add_argument("-d", "--description", default="", help="手順の詳細説明（省略可）")
@@ -35,7 +35,7 @@ def main():
         return
 
     if not args.title:
-        parser.error("タイトルを指定してください（例: python generate.py \"PostgreSQL バックアップ手順\"）")
+        parser.error("タイトルを指定してください（例: uv run python generate.py \"PostgreSQL バックアップ手順\"）")
 
     # 進捗表示（stderrへ）
     template_name = args.template or generator.auto_select_template(args.title)

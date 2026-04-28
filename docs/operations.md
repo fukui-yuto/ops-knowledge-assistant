@@ -9,16 +9,18 @@
 
 ### 1.1 ナレッジの追加・更新・削除
 
-ファイルを `data/knowledge/` に配置・更新・削除して同期コマンドを実行するだけです。
+ファイルを `data/knowledge/` に配置・更新・削除するだけです。
 
+**GUI（Streamlit）起動中の場合**: watchdog がファイル変更を自動検知し、3秒後に同期を実行します。手動操作は不要です。
+
+**手動で同期する場合**:
 ```bash
-# ファイルを追加/更新/削除した後:
 uv run python sync.py
 ```
 
-- **追加**: 新しいファイルを置いて同期 → DB + ChromaDB に自動登録
-- **更新**: ファイルを上書きして同期 → content_hash で変更検知、再取り込み
-- **削除**: ファイルを消して同期 → DB + ChromaDB から自動削除（stale data 防止）
+- **追加**: 新しいファイルを置く → 自動同期（または手動 sync.py）→ DB + ChromaDB に自動登録
+- **更新**: ファイルを上書き → 自動同期 → content_hash で変更検知、再取り込み
+- **削除**: ファイルを消す → 自動同期 → DB + ChromaDB から自動削除（stale data 防止）
 
 事前に変更内容を確認したい場合:
 ```bash
@@ -29,10 +31,10 @@ uv run python sync.py --dry-run
 
 ```bash
 # タイトルだけで生成（最小操作）
-uv run python generate.py "Proxmox バックアップ手順"
+uv run python generate.py "PostgreSQL バックアップ手順"
 
 # ファイルに保存
-uv run python generate.py "Proxmox バックアップ手順" -o output/backup.md
+uv run python generate.py "PostgreSQL バックアップ手順" -o output/backup.md
 
 # 詳細指定
 uv run python generate.py "K8s Pod再起動手順" \
@@ -249,8 +251,8 @@ docker compose up -d
 | RAW_STORAGE_PATH | ./data/raw | 原本ファイル保存パス |
 | KNOWLEDGE_PATH | ./data/knowledge | ナレッジディレクトリパス |
 | TEMPLATES_PATH | ./data/templates | テンプレートディレクトリパス |
-| EMBEDDING_MODEL | models/text-embedding-004 | Embedding モデル名 |
-| GENERATION_MODEL | gemini-2.0-flash | 生成モデル名 |
+| EMBEDDING_MODEL | models/gemini-embedding-001 | Embedding モデル名 |
+| GENERATION_MODEL | gemini-2.5-flash-lite | 生成モデル名 |
 | GOOGLE_API_KEY | (必須) | Google Gemini API キー |
 | CHUNK_SIZE | 800 | チャンクサイズ（文字数） |
 | CHUNK_OVERLAP | 100 | チャンクオーバーラップ（文字数） |

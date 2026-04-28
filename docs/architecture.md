@@ -40,7 +40,8 @@
 | SyncCLI | sync.py | ナレッジ同期（メイン取り込み手段） | Ingestion, DB |
 | GenerateCLI | generate.py | 手順書生成CLI | Generator |
 | HealthCheck | healthcheck.py | 全コンポーネントのヘルスチェック | DB, VectorStore, Config |
-| WebGUI | app.py | StreamlitベースのWeb GUI | Generator, Ingestion, Retriever |
+| Watcher | watcher.py | ナレッジディレクトリのファイル監視・自動同期 | SyncCLI, Config |
+| WebGUI | app.py | StreamlitベースのWeb GUI | Generator, Ingestion, Retriever, Watcher |
 
 ## 3. データフロー
 
@@ -62,10 +63,13 @@ data/knowledge/
 - `external_id` ← ファイル名（拡張子除く）
 - `title` ← ファイル内の最初の `# 見出し`（なければファイル名）
 
-### 3.2 同期フロー (sync.py)
+### 3.2 同期フロー (sync.py / 自動同期)
+
+GUI（Streamlit）起動中は watchdog がファイル変更を監視し、変更検知後にデバウンス（3秒）を経て自動同期を実行する。
+手動で同期する場合は `uv run python sync.py` を実行する。
 
 ```
-uv run python sync.py
+uv run python sync.py  （または watchdog による自動実行）
   │
   ├─1→ data/knowledge/ 配下を全走査
   │
@@ -104,7 +108,7 @@ uv run python sync.py
   │     ├─ ticket: 1チケット=1チャンク（大きければ分割）
   │     └─ その他: RecursiveCharacterTextSplitter
   │
-  ├─5→ Gemini text-embedding-004 でベクトル化
+  ├─5→ Gemini Embedding (gemini-embedding-001) でベクトル化
   │
   ├─6→ PostgreSQL chunks テーブルに挿入 (vector_id = UUID)
   │
@@ -131,7 +135,7 @@ uv run python sync.py
   │     ├─ 関連過去手順（参考資料）
   │     └─ ユーザー指示（タイトル・説明・追加情報）
   │
-  └─5→ Gemini 2.0 Flash で生成 → Markdown出力
+  └─5→ Gemini 2.5 Flash Lite で生成 → Markdown出力
 ```
 
 ## 4. データストア設計
@@ -169,7 +173,7 @@ metadata に格納するフィールド:
 data/raw/
 ├── procedure/confluence/PROC-001.md
 ├── ticket/jira/JIRA-123.md
-└── config/proxmox/CFG-001.md
+└── config/k8s/CFG-001.md
 ```
 
 ## 5. 自動同期メカニズム
@@ -198,11 +202,13 @@ data/raw/
 |---|---|---|
 | PostgreSQL | 信頼性、JSONB対応、チャンク全文保持に適切 | SQLite（小規模なら可） |
 | ChromaDB | Python組み込み、セットアップ不要、小〜中規模に最適 | Qdrant, Weaviate（大規模時） |
-| Gemini text-embedding-004 | 768次元、日本語対応、コスト効率 | OpenAI text-embedding-3-small |
-| Gemini 2.0 Flash | 高速・低コスト、日本語手順書生成に十分な品質 | GPT-4o, Claude（品質重視時） |
+| Gemini Embedding (gemini-embedding-001) | 日本語対応、無料枠あり、コスト効率 | OpenAI text-embedding-3-small |
+| Gemini 2.5 Flash Lite | 高速・低コスト、無料枠で安定動作、日本語手順書生成に十分な品質 | GPT-4o, Claude（品質重視時） |
 | LangChain text-splitters | Markdownヘッダ分割対応、実績あり | 自前実装 |
 | psycopg2 | PostgreSQLドライバの標準、安定性 | asyncpg（非同期化時） |
 | Streamlit | Pythonのみ、高速プロトタイピング、データ系UI向き | Gradio, FastAPI+React |
+| watchdog | ファイル変更のリアルタイム検知、クロスプラットフォーム対応 | inotify直接利用（Linux限定） |
+| google-genai | Google公式の最新Python SDK、旧google-generativeaiの後継 | google-generativeai（非推奨） |
 
 ## 7. 拡張ロードマップ
 

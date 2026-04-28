@@ -5,7 +5,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from .config import config
 from .retriever import Retriever
@@ -42,11 +43,7 @@ class ProcedureGenerator:
     def __init__(self, templates_dir: str | Path | None = None):
         if not config.google_api_key:
             raise RuntimeError("GOOGLE_API_KEY が設定されていません")
-        genai.configure(api_key=config.google_api_key)
-        self.model = genai.GenerativeModel(
-            model_name=config.generation_model,
-            system_instruction=SYSTEM_PROMPT,
-        )
+        self.client = genai.Client(api_key=config.google_api_key)
         self.templates_dir = Path(templates_dir or config.templates_path)
         self.retriever = Retriever()
 
@@ -130,7 +127,13 @@ class ProcedureGenerator:
         )
 
         # 4. LLM生成
-        response = self.model.generate_content(prompt)
+        response = self.client.models.generate_content(
+            model=config.generation_model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+            ),
+        )
         generated = response.text
 
         # 5. メタ情報保存

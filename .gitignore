@@ -29,6 +29,9 @@ pgdata/
 .DS_Store
 Thumbs.db
 
+# Playwright MCP
+.playwright-mcp/
+
 # Test / Cache
 .pytest_cache/
 htmlcov/
