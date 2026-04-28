@@ -30,12 +30,14 @@ with col2:
     except Exception as e:
         st.error(f"ChromaDB: エラー")
 
-# Gemini API
+# LLM API
 with col3:
-    if config.google_api_key:
-        st.success("Gemini API: キー設定済み")
+    provider = config.llm_provider
+    if config.active_api_key:
+        st.success(f"LLM API ({provider}): キー設定済み")
     else:
-        st.error("Gemini API: キー未設定")
+        key_name = "OPENAI_API_KEY" if provider == "openai" else "GOOGLE_API_KEY"
+        st.error(f"LLM API ({provider}): {key_name} 未設定")
 
 # --- 統計 ---
 if stats:
@@ -87,16 +89,23 @@ with col_d1:
 
 # --- 設定値 ---
 st.markdown("### 現在の設定")
-st.json({
+settings = {
+    "LLM_PROVIDER": config.llm_provider,
     "PG_HOST": config.pg_host,
     "PG_PORT": config.pg_port,
     "PG_DB": config.pg_db,
     "CHROMA_PATH": config.chroma_path,
     "KNOWLEDGE_PATH": config.knowledge_path,
     "TEMPLATES_PATH": config.templates_path,
-    "EMBEDDING_MODEL": config.embedding_model,
-    "GENERATION_MODEL": config.generation_model,
     "CHUNK_SIZE": config.chunk_size,
     "CHUNK_OVERLAP": config.chunk_overlap,
-    "GOOGLE_API_KEY": "***" if config.google_api_key else "(未設定)",
-})
+}
+if config.llm_provider == "openai":
+    settings["OPENAI_EMBEDDING_MODEL"] = config.openai_embedding_model
+    settings["OPENAI_GENERATION_MODEL"] = config.openai_generation_model
+    settings["OPENAI_API_KEY"] = "***" if config.openai_api_key else "(未設定)"
+else:
+    settings["EMBEDDING_MODEL"] = config.embedding_model
+    settings["GENERATION_MODEL"] = config.generation_model
+    settings["GOOGLE_API_KEY"] = "***" if config.google_api_key else "(未設定)"
+st.json(settings)

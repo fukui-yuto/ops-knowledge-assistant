@@ -251,9 +251,13 @@ docker compose up -d
 | RAW_STORAGE_PATH | ./data/raw | 原本ファイル保存パス |
 | KNOWLEDGE_PATH | ./data/knowledge | ナレッジディレクトリパス |
 | TEMPLATES_PATH | ./data/templates | テンプレートディレクトリパス |
-| EMBEDDING_MODEL | models/gemini-embedding-001 | Embedding モデル名 |
-| GENERATION_MODEL | gemini-2.5-flash-lite | 生成モデル名 |
-| GOOGLE_API_KEY | (必須) | Google Gemini API キー |
+| LLM_PROVIDER | gemini | LLMプロバイダ（`gemini` または `openai`） |
+| GOOGLE_API_KEY | (gemini時必須) | Google Gemini API キー |
+| EMBEDDING_MODEL | models/gemini-embedding-001 | Gemini Embedding モデル名 |
+| GENERATION_MODEL | gemini-2.5-flash-lite | Gemini 生成モデル名 |
+| OPENAI_API_KEY | (openai時必須) | OpenAI API キー |
+| OPENAI_EMBEDDING_MODEL | text-embedding-3-small | OpenAI Embedding モデル名 |
+| OPENAI_GENERATION_MODEL | gpt-4o-mini | OpenAI 生成モデル名 |
 | CHUNK_SIZE | 800 | チャンクサイズ（文字数） |
 | CHUNK_OVERLAP | 100 | チャンクオーバーラップ（文字数） |
 | APP_PORT | 8502 | Streamlit アプリのポート（Docker Compose用） |

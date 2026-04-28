@@ -108,7 +108,7 @@ uv run python sync.py  （または watchdog による自動実行）
   │     ├─ ticket: 1チケット=1チャンク（大きければ分割）
   │     └─ その他: RecursiveCharacterTextSplitter
   │
-  ├─5→ Gemini Embedding (gemini-embedding-001) でベクトル化
+  ├─5→ Embedding（LLM_PROVIDERに応じてGemini or OpenAI）でベクトル化
   │
   ├─6→ PostgreSQL chunks テーブルに挿入 (vector_id = UUID)
   │
@@ -135,7 +135,7 @@ uv run python sync.py  （または watchdog による自動実行）
   │     ├─ 関連過去手順（参考資料）
   │     └─ ユーザー指示（タイトル・説明・追加情報）
   │
-  └─5→ Gemini 2.5 Flash Lite で生成 → Markdown出力
+  └─5→ LLM（Gemini or OpenAI）で生成 → Markdown出力
 ```
 
 ## 4. データストア設計
@@ -202,8 +202,8 @@ data/raw/
 |---|---|---|
 | PostgreSQL | 信頼性、JSONB対応、チャンク全文保持に適切 | SQLite（小規模なら可） |
 | ChromaDB | Python組み込み、セットアップ不要、小〜中規模に最適 | Qdrant, Weaviate（大規模時） |
-| Gemini Embedding (gemini-embedding-001) | 日本語対応、無料枠あり、コスト効率 | OpenAI text-embedding-3-small |
-| Gemini 2.5 Flash Lite | 高速・低コスト、無料枠で安定動作、日本語手順書生成に十分な品質 | GPT-4o, Claude（品質重視時） |
+| Gemini Embedding (gemini-embedding-001) | 日本語対応、無料枠あり、コスト効率 | OpenAI text-embedding-3-small（LLM_PROVIDERで切り替え可能） |
+| Gemini 2.5 Flash Lite | 高速・低コスト、無料枠で安定動作、日本語手順書生成に十分な品質 | OpenAI GPT-4o-mini（LLM_PROVIDERで切り替え可能） |
 | LangChain text-splitters | Markdownヘッダ分割対応、実績あり | 自前実装 |
 | psycopg2 | PostgreSQLドライバの標準、安定性 | asyncpg（非同期化時） |
 | Streamlit | Pythonのみ、高速プロトタイピング、データ系UI向き | Gradio, FastAPI+React |

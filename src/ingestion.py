@@ -18,7 +18,7 @@ from typing import Any
 from . import db
 from .chunking import chunk_by_source_type
 from .config import config
-from .embedding import GeminiEmbedder
+from .embedding import create_embedder
 from .storage import LocalStorage
 from .vector_store import VectorStore
 
@@ -26,7 +26,7 @@ from .vector_store import VectorStore
 class IngestionPipeline:
     def __init__(self):
         self.storage = LocalStorage(config.raw_storage_path)
-        self.embedder = GeminiEmbedder()
+        self.embedder = create_embedder()
         self.vstore = VectorStore()
 
     def ingest_file(

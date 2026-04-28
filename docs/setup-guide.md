@@ -27,7 +27,7 @@
 | Docker / Docker Compose | 最新 | PostgreSQL + アプリ実行 |
 | uv | 最新 | Pythonパッケージ管理（ローカル開発時） |
 | Python | 3.11以上 | ローカル開発時のみ必要 |
-| Google Gemini API Key | - | Embedding + 手順書生成 |
+| Google Gemini API Key または OpenAI API Key | - | Embedding + 手順書生成（LLM_PROVIDERで選択） |
 
 > **Docker Compose を使う場合**: Python や uv のローカルインストールは不要です。Docker だけで動作します。
 
@@ -68,10 +68,16 @@ cd ops-knowledge-assistant
 cp .env.example .env
 ```
 
-`.env` ファイルを開き、`GOOGLE_API_KEY` を設定してください。
+`.env` ファイルを開き、使用するプロバイダに応じてAPIキーを設定してください。
 
 ```
+# Gemini を使う場合（デフォルト）
+LLM_PROVIDER=gemini
 GOOGLE_API_KEY=ここに取得したAPIキーを貼り付け
+
+# OpenAI を使う場合
+# LLM_PROVIDER=openai
+# OPENAI_API_KEY=sk-ここにAPIキーを貼り付け
 ```
 
 その他の項目はデフォルトのままで動作します。

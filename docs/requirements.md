@@ -124,7 +124,7 @@
 
 | ID | 要件 |
 |---|---|
-| NF-EXT-001 | LLMモデルを設定変更のみで切り替えられる（Gemini → OpenAI等） |
+| NF-EXT-001 | LLMプロバイダを環境変数 `LLM_PROVIDER` で切り替えられる（Gemini / OpenAI） |
 | NF-EXT-002 | ストレージバックエンドを差し替えられる（Local → MinIO/S3） |
 | NF-EXT-003 | Web UI / Slack Bot 等のフロントエンドを後から追加できる構造にする |
 
@@ -132,9 +132,9 @@
 
 | 項目 | 制約 |
 |---|---|
-| LLM | Google Gemini API（初期）。APIキーに利用上限あり |
-| SDK | google-genai（旧google-generativeaiは非推奨） |
-| Embedding | gemini-embedding-001。768次元。バッチ上限あり |
+| LLM | Google Gemini API または OpenAI API（LLM_PROVIDERで切り替え） |
+| SDK | google-genai / openai（プロバイダに応じて使用） |
+| Embedding | Gemini: gemini-embedding-001(768次元) / OpenAI: text-embedding-3-small(1536次元) |
 | DB | PostgreSQL 16+。ローカル or Docker |
 | ベクトルDB | ChromaDB（組み込みモード）。大規模時はクライアント/サーバーモードに移行 |
 | ファイル形式 | 入力・出力ともMarkdown (.md) |

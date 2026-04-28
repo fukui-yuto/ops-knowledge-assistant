@@ -17,7 +17,7 @@ Web GUI またはコマンドライン、どちらからでも操作可能。
 ```bash
 # セットアップ（uv使用）
 uv sync
-cp .env.example .env          # GOOGLE_API_KEY を設定
+cp .env.example .env          # LLM_PROVIDER と APIキーを設定
 
 # GUI で使う場合（推奨）
 uv run streamlit run app.py --server.port 8502  # ブラウザで http://localhost:8502
@@ -107,7 +107,7 @@ data/knowledge/
 [原本]        data/raw/            取り込み済みファイル(LocalStorage)
 [メタDB]      PostgreSQL           documents / chunks / tickets
 [ベクトルDB]  ChromaDB             collection: procedures, tickets, configs, logs
-[生成]        Gemini 2.5 Flash Lite テンプレ + 過去手順 + 指示 → 新規手順書
+[生成]        Gemini / OpenAI     テンプレ + 過去手順 + 指示 → 新規手順書
 [GUI]         Streamlit            ブラウザで全操作可能
 ```
 

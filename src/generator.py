@@ -5,9 +5,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-from google import genai
-from google.genai import types
-
 from .config import config
 from .retriever import Retriever
 
@@ -39,11 +36,43 @@ TEMPLATE_KEYWORDS: dict[str, list[str]] = {
 }
 
 
+def _generate_gemini(prompt: str, model: str) -> str:
+    """Gemini APIで生成する。"""
+    from google import genai
+    from google.genai import types
+    client = genai.Client(api_key=config.google_api_key)
+    response = client.models.generate_content(
+        model=model,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+        ),
+    )
+    return response.text
+
+
+def _generate_openai(prompt: str, model: str) -> str:
+    """OpenAI APIで生成する。"""
+    from openai import OpenAI
+    client = OpenAI(api_key=config.openai_api_key)
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+    )
+    return response.choices[0].message.content
+
+
 class ProcedureGenerator:
     def __init__(self, templates_dir: str | Path | None = None):
-        if not config.google_api_key:
-            raise RuntimeError("GOOGLE_API_KEY が設定されていません")
-        self.client = genai.Client(api_key=config.google_api_key)
+        if not config.active_api_key:
+            provider = config.llm_provider.upper()
+            if provider == "OPENAI":
+                raise RuntimeError("OPENAI_API_KEY が設定されていません")
+            else:
+                raise RuntimeError("GOOGLE_API_KEY が設定されていません")
         self.templates_dir = Path(templates_dir or config.templates_path)
         self.retriever = Retriever()
 
@@ -85,16 +114,7 @@ class ProcedureGenerator:
         max_references: int = 3,
         extra_context: str = "",
     ) -> str:
-        """
-        新規手順書を生成する。
-
-        Args:
-            title: 手順書タイトル（必須）
-            description: 手順の詳細説明（省略時はタイトルをそのまま使用）
-            template_name: テンプレート名（省略時は自動選定）
-            max_references: 参照する過去手順の最大数
-            extra_context: 追加コンテキスト
-        """
+        """新規手順書を生成する。"""
         if not description:
             description = title
 
@@ -126,15 +146,12 @@ class ProcedureGenerator:
             extra_context=extra_context,
         )
 
-        # 4. LLM生成
-        response = self.client.models.generate_content(
-            model=config.generation_model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-            ),
-        )
-        generated = response.text
+        # 4. LLM生成（プロバイダに応じて切り替え）
+        model = config.active_generation_model
+        if config.llm_provider == "openai":
+            generated = _generate_openai(prompt, model)
+        else:
+            generated = _generate_gemini(prompt, model)
 
         # 5. メタ情報保存
         self._todo_count = len(re.findall(r"TODO:", generated))
@@ -153,7 +170,7 @@ class ProcedureGenerator:
             "template_used": getattr(self, "_template_used", ""),
             "references": getattr(self, "_references", []),
             "todo_count": getattr(self, "_todo_count", 0),
-            "model": config.generation_model,
+            "model": config.active_generation_model,
         }
 
     def _build_prompt(

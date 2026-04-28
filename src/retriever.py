@@ -6,13 +6,13 @@ from uuid import UUID
 
 from . import db
 from .config import config
-from .embedding import GeminiEmbedder
+from .embedding import create_embedder
 from .vector_store import VectorStore
 
 
 class Retriever:
     def __init__(self):
-        self.embedder = GeminiEmbedder()
+        self.embedder = create_embedder()
         self.vstore = VectorStore()
 
     def search(

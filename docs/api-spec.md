@@ -179,7 +179,7 @@ docker compose exec app uv run python generate.py "やりたいことのタイ�
       {"document_id": "uuid", "title": "...", "similarity": 0.85}
     ],
     "generated_at": "2026-04-28T10:00:00Z",
-    "model": "gemini-2.5-flash-lite",
+    "model": "gemini-2.5-flash-lite（またはLLM_PROVIDERに応じたモデル名）",
     "has_todos": true
   }
 }

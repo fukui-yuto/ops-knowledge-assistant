@@ -8,7 +8,7 @@ Web GUI（Streamlit）とCLIの両方からコマンド不要で操作可能。
 - Python 3.11+
 - PostgreSQL 16（メタデータ、チャンク保存）
 - ChromaDB（ベクトルストア）
-- Google Gemini via google-genai SDK（Embedding: gemini-embedding-001、生成: gemini-2.5-flash-lite）
+- LLMプロバイダ: Google Gemini または OpenAI（LLM_PROVIDERで切り替え）
 - LangChain text-splitters（チャンク分割）
 - Streamlit（Web GUI）
 - watchdog（ナレッジディレクトリのファイル監視・自動同期）
@@ -130,7 +130,7 @@ ops-knowledge-assistant/
 - 原本ファイルはベクトルDBとは別管理（再Embedding のため）
 - `content_hash`（SHA256）で差分検知、未変更ファイルはスキップ
 - ChromaDB のコレクションは `source_type` 単位で分離（フィルタ検索精度向上）
-- 手順書生成は Gemini 2.5 Flash Lite で構造化プロンプト（テンプレ + 関連手順 + ユーザー指示）
+- 手順書生成は LLM_PROVIDER に応じた生成モデルで構造化プロンプト（テンプレ + 関連手順 + ユーザー指示）
 - 生成結果は generation_log テーブルに保存され、履歴からダウンロード可能
 - GUI は Streamlit で、コード/コマンド不要でブラウザだけで全操作可能
 

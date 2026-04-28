@@ -16,20 +16,23 @@ def test_template_keywords_structure():
         assert all(isinstance(k, str) for k in keywords)
 
 
+def _create_generator(tmp_path):
+    """テスト用のProcedureGeneratorを作成するヘルパー。"""
+    with patch("src.generator.config") as mock_config:
+        mock_config.active_api_key = "test-key"
+        mock_config.llm_provider = "gemini"
+        mock_config.active_generation_model = "test-model"
+        mock_config.templates_path = str(tmp_path)
+        with patch("src.generator.Retriever"):
+            gen = ProcedureGenerator(templates_dir=tmp_path)
+    return gen
+
+
 def test_auto_select_template_k8s(tmp_path):
     """K8s関連タイトルでk8sテンプレートが選定されること。"""
-    # テンプレートを作成
     (tmp_path / "default.md").write_text("default template")
     (tmp_path / "k8s.md").write_text("k8s template")
-
-    with patch("src.generator.config") as mock_config:
-        mock_config.google_api_key = "test"
-        mock_config.generation_model = "test"
-        mock_config.templates_path = str(tmp_path)
-        with patch("src.generator.genai"):
-            with patch("src.generator.Retriever"):
-                gen = ProcedureGenerator(templates_dir=tmp_path)
-
+    gen = _create_generator(tmp_path)
     result = gen.auto_select_template("K8s Pod再起動手順")
     assert result == "k8s"
 
@@ -37,15 +40,7 @@ def test_auto_select_template_k8s(tmp_path):
 def test_auto_select_template_default(tmp_path):
     """該当なしの場合defaultが選定されること。"""
     (tmp_path / "default.md").write_text("default template")
-
-    with patch("src.generator.config") as mock_config:
-        mock_config.google_api_key = "test"
-        mock_config.generation_model = "test"
-        mock_config.templates_path = str(tmp_path)
-        with patch("src.generator.genai"):
-            with patch("src.generator.Retriever"):
-                gen = ProcedureGenerator(templates_dir=tmp_path)
-
+    gen = _create_generator(tmp_path)
     result = gen.auto_select_template("何か不明な手順")
     assert result == "default"
 
@@ -54,15 +49,7 @@ def test_auto_select_template_network(tmp_path):
     """ネットワーク関連タイトルでnetworkが選定されること。"""
     (tmp_path / "default.md").write_text("default template")
     (tmp_path / "network.md").write_text("network template")
-
-    with patch("src.generator.config") as mock_config:
-        mock_config.google_api_key = "test"
-        mock_config.generation_model = "test"
-        mock_config.templates_path = str(tmp_path)
-        with patch("src.generator.genai"):
-            with patch("src.generator.Retriever"):
-                gen = ProcedureGenerator(templates_dir=tmp_path)
-
+    gen = _create_generator(tmp_path)
     result = gen.auto_select_template("ネットワーク設定変更手順")
     assert result == "network"
 
@@ -72,15 +59,7 @@ def test_list_templates(tmp_path):
     (tmp_path / "default.md").write_text("template")
     (tmp_path / "k8s.md").write_text("template")
     (tmp_path / "not_md.txt").write_text("ignored")
-
-    with patch("src.generator.config") as mock_config:
-        mock_config.google_api_key = "test"
-        mock_config.generation_model = "test"
-        mock_config.templates_path = str(tmp_path)
-        with patch("src.generator.genai"):
-            with patch("src.generator.Retriever"):
-                gen = ProcedureGenerator(templates_dir=tmp_path)
-
+    gen = _create_generator(tmp_path)
     templates = gen.list_templates()
     assert "default" in templates
     assert "k8s" in templates
@@ -90,28 +69,13 @@ def test_list_templates(tmp_path):
 def test_load_template(tmp_path):
     """テンプレートの読み込みが正しく行われること。"""
     (tmp_path / "default.md").write_text("# {{title}}\n\ntemplate content", encoding="utf-8")
-
-    with patch("src.generator.config") as mock_config:
-        mock_config.google_api_key = "test"
-        mock_config.generation_model = "test"
-        mock_config.templates_path = str(tmp_path)
-        with patch("src.generator.genai"):
-            with patch("src.generator.Retriever"):
-                gen = ProcedureGenerator(templates_dir=tmp_path)
-
+    gen = _create_generator(tmp_path)
     content = gen.load_template("default")
     assert "{{title}}" in content
 
 
 def test_load_template_not_found(tmp_path):
     """存在しないテンプレートでFileNotFoundErrorが発生すること。"""
-    with patch("src.generator.config") as mock_config:
-        mock_config.google_api_key = "test"
-        mock_config.generation_model = "test"
-        mock_config.templates_path = str(tmp_path)
-        with patch("src.generator.genai"):
-            with patch("src.generator.Retriever"):
-                gen = ProcedureGenerator(templates_dir=tmp_path)
-
+    gen = _create_generator(tmp_path)
     with pytest.raises(FileNotFoundError):
         gen.load_template("nonexistent")
