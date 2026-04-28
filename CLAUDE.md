@@ -24,7 +24,8 @@ ops-knowledge-assistant/
 │   ├── api-spec.md          # CLI/API インターフェース仕様書
 │   ├── gui-spec.md          # Web GUI 仕様書
 │   ├── data-model.md        # データモデル仕様書
-│   └── operations.md        # 運用ガイド
+│   ├── operations.md        # 運用ガイド
+│   └── setup-guide.md       # セットアップ＆利用ガイド
 ├── app.py                   # Streamlit GUI エントリポイント
 ├── pages/                   # Streamlit ページモジュール
 │   ├── 01_generate.py       # 手順書生成ページ
@@ -52,6 +53,9 @@ ops-knowledge-assistant/
 │   ├── test_chunking.py
 │   ├── test_sync.py
 │   └── test_generator.py
+├── docker-compose.yml       # Docker Compose 構成
+├── Dockerfile               # アプリコンテナ定義
+├── healthcheck.py           # ヘルスチェックスクリプト
 ├── pyproject.toml           # uv パッケージ管理
 ├── data/
 │   ├── templates/           # テンプレート手順書（Git管理対象）
@@ -63,6 +67,7 @@ ops-knowledge-assistant/
 │   ├── raw/                 # 取り込み済み原本（gitignore）
 │   └── chroma/              # ChromaDB 永続化（gitignore）
 ├── .env.example
+├── .streamlit/config.toml   # Streamlit 設定
 └── .gitignore
 ```
 
@@ -126,28 +131,29 @@ ops-knowledge-assistant/
 - 手順書生成は Gemini 2.0 Flash で構造化プロンプト（テンプレ + 関連手順 + ユーザー指示）
 - GUI は Streamlit で、コード/コマンド不要でブラウザだけで全操作可能
 
-## テスト（予定）
-- pytest を使用
-- テスト用DB: `log_assistant_test`（本番DBとは分離）
+## テスト
+- pytest を使用（`uv run pytest tests/ -v`）
 - LLM/Embedding 呼び出しはモックで単体テスト
+- テスト対象: config, storage, chunking, sync, generator（29テスト）
 
 ## よく使うコマンド
+
+### Docker Compose（推奨）
 ```bash
-# 依存パッケージインストール
-uv sync
+docker compose up -d                                          # 全サービス起動
+docker compose exec app uv run python sync.py --init-schema   # 初回DB初期化
+docker compose exec app uv run python sync.py                 # ナレッジ同期
+docker compose exec app uv run python generate.py "タイトル"   # 手順書生成
+docker compose exec app uv run python healthcheck.py           # ヘルスチェック
+docker compose down                                            # 停止
+```
 
-# GUI起動（推奨）
-uv run streamlit run app.py
-
-# ナレッジ同期（CLIの場合）
-uv run python sync.py
-
-# 手順書生成（CLIの場合）
-uv run python generate.py "タイトル"
-
-# テンプレート一覧
-uv run python generate.py --list-templates
-
-# テスト実行
-uv run pytest tests/ -v
+### ローカル開発
+```bash
+uv sync                                                # 依存パッケージインストール
+uv run streamlit run app.py --server.port 8502         # GUI起動
+uv run python sync.py                                  # ナレッジ同期
+uv run python generate.py "タイトル"                    # 手順書生成
+uv run python healthcheck.py                           # ヘルスチェック
+uv run pytest tests/ -v                                # テスト実行
 ```

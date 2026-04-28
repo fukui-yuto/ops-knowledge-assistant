@@ -36,7 +36,7 @@
                                 │ title                │
                                 │ description          │
                                 │ template_used        │
-                                │ references (JSONB)   │
+                                │ reference_docs (JSONB)│
                                 │ model                │
                                 │ output_path          │
                                 │ has_todos            │
@@ -116,7 +116,7 @@
 | message | TEXT | NULL | - | 詳細メッセージ |
 | executed_at | TIMESTAMP | NOT NULL | NOW() | 実行日時 |
 
-### 2.5 generation_log (新規追加予定)
+### 2.5 generation_log
 
 手順書生成の実行履歴。
 
@@ -126,7 +126,7 @@
 | title | TEXT | NOT NULL | - | 生成した手順書のタイトル |
 | description | TEXT | NOT NULL | - | ユーザーが入力した説明 |
 | template_used | TEXT | NOT NULL | - | 使用したテンプレート名 |
-| references | JSONB | NOT NULL | `[]` | 参照した過去手順のリスト |
+| reference_docs | JSONB | NOT NULL | `[]` | 参照した過去手順のリスト |
 | model | TEXT | NOT NULL | - | 使用したLLMモデル名 |
 | output_path | TEXT | NULL | - | 出力ファイルパス |
 | has_todos | BOOLEAN | NOT NULL | false | TODO項目を含むか |

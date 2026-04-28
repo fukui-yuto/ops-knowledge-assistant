@@ -3,23 +3,25 @@
 ## 1. CLI コマンド一覧
 
 本システムはユーザー操作を最小限にする設計。主要な操作は以下の2つ:
-- `python sync.py` — ナレッジの取り込み・同期
-- `python generate.py "タイトル"` — 手順書の生成
+- `uv run python sync.py` — ナレッジの取り込み・同期
+- `uv run python generate.py "タイトル"` — 手順書の生成
+
+Docker Compose 環境では `docker compose exec app` を先頭に付けて実行する。
 
 ### 1.1 同期CLI (sync.py) — メインの取り込み手段
 
 ```bash
 # 基本操作（これだけでOK）
-python sync.py
-
-# ファイル変更を常時監視
-python sync.py --watch
+uv run python sync.py
 
 # 整合性チェック（変更はしない）
-python sync.py --check
+uv run python sync.py --check
 
-# 詳細表示
-python sync.py --dry-run
+# 事前確認（変更はしない）
+uv run python sync.py --dry-run
+
+# 初回: DBスキーマ適用 + 同期
+uv run python sync.py --init-schema
 ```
 
 **引数なし実行の動作**:
@@ -31,7 +33,6 @@ python sync.py --dry-run
 
 | オプション | 型 | 必須 | デフォルト | 説明 |
 |---|---|---|---|---|
-| `--watch` | flag | No | - | ファイル変更を常時監視する（Ctrl+Cで停止） |
 | `--check` | flag | No | - | 整合性チェックのみ実行する（変更はしない） |
 | `--dry-run` | flag | No | - | 実行予定の操作を表示するが、実際には変更しない |
 | `--init-schema` | flag | No | - | 初回のみ: DBスキーマを適用してから同期する |
@@ -50,16 +51,16 @@ python sync.py --dry-run
 
 ```bash
 # 最小操作（タイトルだけ）
-python generate.py "Proxmox バックアップ手順"
+uv run python generate.py "Proxmox バックアップ手順"
 
 # ファイルに保存
-python generate.py "Proxmox バックアップ手順" -o output/backup.md
+uv run python generate.py "Proxmox バックアップ手順" -o output/backup.md
 
 # テンプレート指定
-python generate.py "Proxmox バックアップ手順" --template storage
+uv run python generate.py "Proxmox バックアップ手順" --template storage
 
 # 詳細指定
-python generate.py "K8s Pod再起動手順" \
+uv run python generate.py "K8s Pod再起動手順" \
     --description "CrashLoopBackOffのPodを安全に再起動する" \
     --context "対象: production, namespace=app" \
     --template k8s \
@@ -86,41 +87,30 @@ python generate.py "K8s Pod再起動手順" \
 - `-o` 省略時: stdoutにMarkdown出力
 - TODO項目が含まれる場合、stderrに警告を表示
 
-### 1.3 単体取り込みCLI (ingest_cli.py) — 高度な操作用
+### 1.3 ヘルスチェック (healthcheck.py)
 
-通常は `sync.py` を使う。個別に細かく制御したい場合のみ使用する。
+全コンポーネントの接続状態を一括確認する。
 
+```bash
+uv run python healthcheck.py
 ```
-python -m scripts.ingest_cli [OPTIONS]
+
+**出力例**:
+```
+[OK] PostgreSQL
+[OK] ChromaDB
+[OK] GOOGLE_API_KEY
 ```
 
-| オプション | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `--path` | string | Yes | 取り込むファイルのパス |
-| `--source-type` | enum | Yes | `procedure` / `ticket` / `config` / `log` |
-| `--source-system` | string | Yes | 出元システム名 |
-| `--external-id` | string | Yes | 元システムでのID |
-| `--title` | string | Yes | ドキュメントのタイトル |
-| `--metadata` | JSON string | No | 追加メタデータ（デフォルト: `{}`） |
-| `--ticket-fields` | JSON string | No | チケット固有フィールド |
-| `--init-schema` | flag | No | 実行前にDBスキーマを適用する |
-
-**出力**: JSON形式
-```json
-{
-  "document_id": "uuid",
-  "action": "created | updated | skip",
-  "chunks": 5
-}
-```
+Docker Compose 環境ではコンテナの HEALTHCHECK として 30秒間隔で自動実行される。
 
 ## 2. ユーザー操作フローまとめ
 
 ### 初回セットアップ（1回だけ）
 ```bash
-pip install -r requirements.txt
-cp .env.example .env          # GOOGLE_API_KEY を設定
-python sync.py --init-schema  # DB初期化 + 初回同期
+cp .env.example .env                                     # GOOGLE_API_KEY を設定
+docker compose up -d                                      # 全サービス起動
+docker compose exec app uv run python sync.py --init-schema  # DB初期化
 ```
 
 ### 日常操作: ナレッジ追加
@@ -129,13 +119,15 @@ python sync.py --init-schema  # DB初期化 + 初回同期
 cp my_procedure.md data/knowledge/procedure/confluence/
 
 # 2. 同期
-python sync.py
+docker compose exec app uv run python sync.py
 ```
 
 ### 日常操作: 手順書生成
 ```bash
-python generate.py "やりたいことのタイトル"
+docker compose exec app uv run python generate.py "やりたいことのタイトル"
 ```
+
+またはブラウザで http://localhost:8502 を開き、GUI から操作する。
 
 ## 3. 終了コード
 
@@ -146,7 +138,9 @@ python generate.py "やりたいことのタイトル"
 | 0 | 正常終了 |
 | 1 | エラー（ファイル不在、DB接続エラー、LLM APIエラー等） |
 
-## 4. 将来の Web API 仕様 (Phase 2)
+## 4. Web API 仕様（ロードマップ）
+
+> 現在は CLI + Streamlit GUI で操作する。REST API は将来の拡張として設計済み。
 
 ### 4.1 エンドポイント一覧
 

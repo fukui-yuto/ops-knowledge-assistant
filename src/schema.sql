@@ -73,3 +73,20 @@ CREATE TABLE IF NOT EXISTS ingestion_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ingestion_log_executed_at ON ingestion_log(executed_at DESC);
+
+-- ============================================================
+-- generation_log: 手順書生成の実行履歴
+-- ============================================================
+CREATE TABLE IF NOT EXISTS generation_log (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title           TEXT NOT NULL,
+    description     TEXT NOT NULL DEFAULT '',
+    template_used   TEXT NOT NULL,
+    reference_docs  JSONB NOT NULL DEFAULT '[]'::jsonb,
+    model           TEXT NOT NULL,
+    output_path     TEXT,
+    has_todos       BOOLEAN NOT NULL DEFAULT false,
+    created_at      TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_generation_log_created_at ON generation_log(created_at DESC);

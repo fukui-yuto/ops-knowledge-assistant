@@ -39,7 +39,7 @@
 | Generator | generator.py | LLM手順書生成 | Retriever, Config |
 | SyncCLI | sync.py | ナレッジ同期（メイン取り込み手段） | Ingestion, DB |
 | GenerateCLI | generate.py | 手順書生成CLI | Generator |
-| IngestCLI | ingest_cli.py | 単体取り込みCLI（高度な操作用） | Ingestion, DB |
+| HealthCheck | healthcheck.py | 全コンポーネントのヘルスチェック | DB, VectorStore, Config |
 | WebGUI | app.py | StreamlitベースのWeb GUI | Generator, Ingestion, Retriever |
 
 ## 3. データフロー
@@ -65,7 +65,7 @@ data/knowledge/
 ### 3.2 同期フロー (sync.py)
 
 ```
-python sync.py
+uv run python sync.py
   │
   ├─1→ data/knowledge/ 配下を全走査
   │
@@ -204,14 +204,20 @@ data/raw/
 | psycopg2 | PostgreSQLドライバの標準、安定性 | asyncpg（非同期化時） |
 | Streamlit | Pythonのみ、高速プロトタイピング、データ系UI向き | Gradio, FastAPI+React |
 
-## 7. 将来の拡張ポイント
+## 7. 拡張ロードマップ
 
-### Phase 2: Agent化
+以下は今後の拡張として設計を検討している機能です。
+
+### Agent化
 - LangGraph ベースの Agent
 - ツール: 検索 / 生成 / 取り込み / 承認依頼
 - 対話的に手順書を改善するフロー
 
-### Phase 3: 外部連携
+### 外部連携
 - JIRA / Confluence API 自動同期
 - Slack Bot（手順書生成リクエスト・通知）
 - PDF / Confluence Wiki 形式へのエクスポート
+
+### REST API
+- FastAPI ベースの Web API（[api-spec.md](api-spec.md) セクション4 参照）
+- 外部システムからの手順書生成・検索呼び出し

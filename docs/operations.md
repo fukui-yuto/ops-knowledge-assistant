@@ -1,176 +1,91 @@
 # 運用ガイド
 
-## 1. 環境構築
+本ドキュメントは ops-knowledge-assistant の日常運用・保守向けガイドです。
+初回セットアップは [setup-guide.md](setup-guide.md) を参照してください。
 
-### 1.1 前提条件
+---
 
-- Python 3.11+
-- PostgreSQL 16+
-- Google Cloud アカウント（Gemini API Key）
+## 1. 日常運用
 
-### 1.2 初回セットアップ
+### 1.1 ナレッジの追加・更新・削除
 
-```bash
-# リポジトリクローン
-git clone https://github.com/fukui-yuto/ops-knowledge-assistant.git
-cd ops-knowledge-assistant
-
-# Python仮想環境
-python -m venv .venv
-source .venv/bin/activate    # Linux/Mac
-.venv\Scripts\activate       # Windows
-
-# 依存パッケージ
-pip install -r requirements.txt
-
-# 環境変数
-cp .env.example .env
-# .env を編集して GOOGLE_API_KEY を設定
-```
-
-### 1.3 PostgreSQL セットアップ
+ファイルを `data/knowledge/` に配置・更新・削除して同期コマンドを実行するだけです。
 
 ```bash
-# Docker で起動
-docker run -d --name pg \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=log_assistant \
-  -p 5432:5432 \
-  -v $(pwd)/pgdata:/var/lib/postgresql/data \
-  postgres:16
+# ファイルを追加/更新/削除した後:
+uv run python sync.py
 ```
 
-### 1.4 初回同期（DB初期化 + ナレッジ取り込み）
+- **追加**: 新しいファイルを置いて同期 → DB + ChromaDB に自動登録
+- **更新**: ファイルを上書きして同期 → content_hash で変更検知、再取り込み
+- **削除**: ファイルを消して同期 → DB + ChromaDB から自動削除（stale data 防止）
 
+事前に変更内容を確認したい場合:
 ```bash
-# data/knowledge/ にファイルを配置してから:
-python sync.py --init-schema
+uv run python sync.py --dry-run
 ```
 
-### 1.5 Docker Compose (将来)
-
-```yaml
-# docker-compose.yml (計画)
-version: '3.8'
-services:
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: log_assistant
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  app:
-    build: .
-    depends_on:
-      - postgres
-    environment:
-      PG_HOST: postgres
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
-    ports:
-      - "8501:8501"
-    volumes:
-      - ./data:/app/data
-
-volumes:
-  pgdata:
-```
-
-## 2. 日常運用
-
-### 2.1 GUI で操作する場合（推奨）
-
-```bash
-# GUI起動
-streamlit run app.py
-```
-
-ブラウザで http://localhost:8501 を開き、以下の操作をGUIだけで行える:
-- ナレッジ管理: ファイルのアップロード・閲覧・削除
-- 手順書生成: タイトル入力 → 生成 → コピー/ダウンロード
-- テンプレート: 一覧・プレビュー
-- 検索: ナレッジの横断検索
-- 設定: 状態確認・整合性チェック
-
-詳細は [docs/gui-spec.md](gui-spec.md) を参照。
-
-### 2.2 CLI で操作する場合
-
-#### ナレッジの取り込み（ファイルを置いて同期）
-
-```bash
-# 1. ファイルを所定フォルダに配置
-cp my_procedure.md data/knowledge/procedure/confluence/
-
-# 2. 同期実行（これだけ）
-python sync.py
-```
-
-#### 手順書の生成
+### 1.2 手順書の生成
 
 ```bash
 # タイトルだけで生成（最小操作）
-python generate.py "Proxmox バックアップ手順"
+uv run python generate.py "Proxmox バックアップ手順"
 
 # ファイルに保存
-python generate.py "Proxmox バックアップ手順" -o output/backup.md
+uv run python generate.py "Proxmox バックアップ手順" -o output/backup.md
 
 # 詳細指定
-python generate.py "K8s Pod再起動手順" \
+uv run python generate.py "K8s Pod再起動手順" \
     -d "CrashLoopBackOffのPodを安全に再起動する" \
     -t k8s \
     -c "対象: production, namespace=app" \
     -o output/k8s_restart.md
 ```
 
-#### テンプレート管理
+### 1.3 整合性チェック
+
+PostgreSQL と ChromaDB の状態を確認:
 
 ```bash
-# テンプレート追加（ファイルを置くだけ）
-cp my_template.md data/templates/k8s.md
-
-# テンプレート一覧確認
-python generate.py --list-templates
+uv run python sync.py --check
 ```
 
-### 2.3 ナレッジディレクトリの構造
+GUI の「設定」ページからも確認可能です。
 
-```
-data/knowledge/
-├── procedure/              # 手順書
-│   ├── confluence/         # 出元システム
-│   │   ├── server_setup.md
-│   │   └── backup_config.md
-│   └── internal/
-│       └── deploy_flow.md
-├── ticket/                 # チケット
-│   └── jira/
-│       └── JIRA-123.md
-├── config/                 # 設定情報
-│   └── proxmox/
-│       └── cluster_config.md
-└── log/                    # ログパターン
-    └── app/
-        └── error_patterns.md
+### 1.4 ヘルスチェック
+
+全コンポーネント（PostgreSQL、ChromaDB、API Key）の状態を一括確認:
+
+```bash
+uv run python healthcheck.py
 ```
 
-## 3. トラブルシューティング
+出力例:
+```
+[OK] PostgreSQL
+[OK] ChromaDB
+[OK] GOOGLE_API_KEY
+```
 
-### 3.1 DB接続エラー
+Docker Compose 環境ではコンテナの HEALTHCHECK として自動実行されます。
+
+---
+
+## 2. トラブルシューティング
+
+### 2.1 DB接続エラー
 
 ```
 psycopg2.OperationalError: could not connect to server
 ```
 
 **対処**:
-1. PostgreSQL が起動しているか確認: `docker ps | grep pg`
-2. `.env` の `PG_HOST`, `PG_PORT` が正しいか確認
-3. ファイアウォールで 5432 ポートが開いているか確認
+1. PostgreSQL が起動しているか確認: `docker ps | grep pg` または `docker compose ps`
+2. 停止していた場合: `docker start pg` または `docker compose up -d`
+3. `.env` の `PG_HOST`, `PG_PORT` が正しいか確認
+4. ファイアウォールで 5432 ポートが開いているか確認
 
-### 3.2 Gemini API エラー
+### 2.2 Gemini API エラー
 
 ```
 google.api_core.exceptions.PermissionDenied: 403
@@ -181,7 +96,7 @@ google.api_core.exceptions.PermissionDenied: 403
 2. APIキーが有効か Google Cloud Console で確認
 3. Gemini API が有効化されているか確認
 
-### 3.3 ChromaDB エラー
+### 2.3 ChromaDB エラー
 
 ```
 chromadb.errors.ChromaError
@@ -189,50 +104,137 @@ chromadb.errors.ChromaError
 
 **対処**:
 1. `data/chroma/` ディレクトリの権限を確認
-2. 破損した場合は `data/chroma/` を削除し、PostgreSQL chunks から再構築する
+2. 破損した場合は `data/chroma/` を削除し、`uv run python sync.py` で再構築
 3. GUI の設定ページ →「ベクトル再構築」をクリック
 
-### 3.4 生成結果にTODOが多い
+### 2.4 生成結果にTODOが多い
 
 **原因**: 過去手順のナレッジが不足している
 **対処**:
 1. 関連する過去手順を追加で取り込む
-2. 追加情報（`--context` / GUI の詳細オプション）で具体的な情報を与える
-3. 参照数を増やす
+2. 追加情報（`-c` / GUI の詳細オプション）で具体的な情報を与える
+3. `--max-references` の値を増やす
 
-## 4. バックアップ
+### 2.5 ファイルを更新したのに反映されない
 
-### 4.1 PostgreSQL
+`uv run python sync.py` を実行してください。ファイルの `content_hash`（SHA256）で変更を検知し、変更があったファイルだけ再取り込みします。
+
+---
+
+## 3. バックアップ
+
+### 3.1 PostgreSQL
 
 ```bash
 # バックアップ
 docker exec pg pg_dump -U postgres log_assistant > backup_$(date +%Y%m%d).sql
 
+# Docker Compose環境の場合
+docker compose exec postgres pg_dump -U postgres log_assistant > backup_$(date +%Y%m%d).sql
+
 # リストア
 docker exec -i pg psql -U postgres log_assistant < backup_20260428.sql
 ```
 
-### 4.2 原本ファイル
+### 3.2 原本ファイル
 
 ```bash
 # data/raw/ をバックアップ
 tar czf raw_backup_$(date +%Y%m%d).tar.gz data/raw/
 ```
 
-### 4.3 ChromaDB
+### 3.3 ChromaDB
 
 ChromaDB は PostgreSQL の chunks テーブルから再構築可能なため、バックアップ必須ではない。
-GUI の設定ページまたは将来の `rebuild_vectors` スクリプトで再構築可能。
+`data/chroma/` を削除して `uv run python sync.py` で再構築可能。
 
-## 5. 監視項目 (将来)
+---
+
+## 4. 監視
+
+### 4.1 ヘルスチェック
+
+`healthcheck.py` で全コンポーネントの状態を確認できます。
+Docker Compose 環境では 30秒間隔で自動実行されます。
+
+```bash
+uv run python healthcheck.py
+```
+
+### 4.2 監視項目
 
 | 項目 | 確認方法 | 閾値 |
 |---|---|---|
-| PostgreSQL 接続 | SELECT 1 | 応答なし → アラート |
-| ChromaDB ヘルス | collection.count() | エラー → アラート |
-| Gemini API レスポンス | 生成テスト | 60秒超 → 警告 |
-| ディスク使用量 | data/raw/, data/chroma/ | 80%超 → 警告 |
-| 取り込みエラー率 | ingestion_log の error 率 | 10%超 → 警告 |
+| PostgreSQL 接続 | `healthcheck.py` / `docker compose ps` | 応答なし → アラート |
+| ChromaDB ヘルス | `healthcheck.py` | エラー → アラート |
+| Gemini API | `healthcheck.py` | キー未設定 → アラート |
+| ディスク使用量 | `df -h` / `docker system df` | 80%超 → 警告 |
+| 取り込みエラー率 | `sync.py --check` / GUI 設定ページ | エラー頻発 → 警告 |
+
+### 4.3 ログ確認
+
+```bash
+# Docker Compose環境のログ
+docker compose logs -f app
+docker compose logs -f postgres
+
+# 取り込み履歴はDB内の ingestion_log テーブルに記録
+# 生成履歴はDB内の generation_log テーブルに記録
+```
+
+---
+
+## 5. Docker Compose
+
+### 5.1 構成
+
+```yaml
+services:
+  postgres:    # PostgreSQL 16 (メタデータ + チャンク保存)
+  app:         # Streamlit アプリ (GUI + 全機能)
+```
+
+### 5.2 起動・停止
+
+```bash
+# 起動（初回はビルドも自動実行）
+docker compose up -d
+
+# 初回のみ: DBスキーマ初期化
+docker compose exec app uv run python sync.py --init-schema
+
+# 停止
+docker compose down
+
+# 停止 + データ削除（完全リセット）
+docker compose down -v
+```
+
+### 5.3 ポート変更
+
+`.env` で `APP_PORT` を変更:
+```
+APP_PORT=8502
+```
+
+### 5.4 ナレッジの同期（Docker Compose環境）
+
+`data/knowledge/` はホスト側からマウントされるので、ホスト側でファイルを置いた後:
+
+```bash
+docker compose exec app uv run python sync.py
+```
+
+またはGUIの「ナレッジ管理」からアップロードも可能。
+
+### 5.5 ビルドし直す場合
+
+```bash
+docker compose build --no-cache
+docker compose up -d
+```
+
+---
 
 ## 6. 環境変数一覧
 
@@ -246,7 +248,10 @@ GUI の設定ページまたは将来の `rebuild_vectors` スクリプトで再
 | CHROMA_PATH | ./data/chroma | ChromaDB 永続化パス |
 | RAW_STORAGE_PATH | ./data/raw | 原本ファイル保存パス |
 | KNOWLEDGE_PATH | ./data/knowledge | ナレッジディレクトリパス |
+| TEMPLATES_PATH | ./data/templates | テンプレートディレクトリパス |
 | EMBEDDING_MODEL | models/text-embedding-004 | Embedding モデル名 |
+| GENERATION_MODEL | gemini-2.0-flash | 生成モデル名 |
 | GOOGLE_API_KEY | (必須) | Google Gemini API キー |
 | CHUNK_SIZE | 800 | チャンクサイズ（文字数） |
 | CHUNK_OVERLAP | 100 | チャンクオーバーラップ（文字数） |
+| APP_PORT | 8502 | Streamlit アプリのポート（Docker Compose用） |

@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-postgres}
+      POSTGRES_DB: ${PG_DB:-log_assistant}
+      POSTGRES_USER: ${PG_USER:-postgres}
+    ports:
+      - "${PG_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-postgres} -d ${PG_DB:-log_assistant}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DB: ${PG_DB:-log_assistant}
+      PG_USER: ${PG_USER:-postgres}
+      PG_PASSWORD: ${PG_PASSWORD:-postgres}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      CHROMA_PATH: /app/data/chroma
+      RAW_STORAGE_PATH: /app/data/raw
+      KNOWLEDGE_PATH: /app/data/knowledge
+      TEMPLATES_PATH: /app/data/templates
+    ports:
+      - "${APP_PORT:-8502}:8502"
+    volumes:
+      - ./data/knowledge:/app/data/knowledge
+      - ./data/templates:/app/data/templates
+      - chroma_data:/app/data/chroma
+      - raw_data:/app/data/raw
+      - ./output:/app/output
+
+volumes:
+  pgdata:
+  chroma_data:
+  raw_data:

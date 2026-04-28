@@ -20,7 +20,7 @@ uv sync
 cp .env.example .env          # GOOGLE_API_KEY を設定
 
 # GUI で使う場合（推奨）
-uv run streamlit run app.py   # ブラウザで http://localhost:8501
+uv run streamlit run app.py --server.port 8502  # ブラウザで http://localhost:8502
 
 # CLI で使う場合
 uv run python sync.py --init-schema  # 初回: DB初期化 + ナレッジ同期
@@ -32,7 +32,7 @@ uv run pytest tests/ -v
 
 ## GUI で操作（コマンド不要）
 
-`streamlit run app.py` でブラウザから全操作が可能:
+`uv run streamlit run app.py --server.port 8502` でブラウザから全操作が可能:
 
 | 画面 | できること |
 |---|---|
@@ -49,7 +49,7 @@ uv run pytest tests/ -v
 ```bash
 # ファイルを置いて同期（これだけ）
 cp my_procedure.md data/knowledge/procedure/confluence/
-python sync.py
+uv run python sync.py
 ```
 
 フォルダ構造から source_type / source_system を自動判定。
@@ -59,13 +59,13 @@ python sync.py
 
 ```bash
 # タイトルだけで生成（最小操作）
-python generate.py "Proxmox バックアップ手順"
+uv run python generate.py "Proxmox バックアップ手順"
 
 # ファイルに保存
-python generate.py "Proxmox バックアップ手順" -o output/backup.md
+uv run python generate.py "Proxmox バックアップ手順" -o output/backup.md
 
 # 詳細指定
-python generate.py "K8s Pod再起動手順" \
+uv run python generate.py "K8s Pod再起動手順" \
     -d "CrashLoopBackOffのPodを安全に再起動" \
     -t k8s \
     -c "対象: production" \
@@ -94,6 +94,7 @@ data/knowledge/
 | [docs/template-spec.md](docs/template-spec.md) | テンプレート仕様書 |
 | [docs/data-model.md](docs/data-model.md) | データモデル仕様書 |
 | [docs/operations.md](docs/operations.md) | 運用ガイド |
+| [docs/setup-guide.md](docs/setup-guide.md) | セットアップ＆利用ガイド |
 
 ## アーキテクチャ
 
