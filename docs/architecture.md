@@ -195,6 +195,27 @@ uv run python sync.py  （または watchdog による自動実行）
   └─4→ 回答 + 参照元ドキュメント情報を返却
 ```
 
+### 3.7 検索改善パイプライン
+
+生成・QA の検索精度を向上させるための改善機構。各機能は環境変数で個別にON/OFF可能。
+
+```
+ユーザークエリ
+  │
+  ├─[HyDE]→ LLMで仮回答を生成 → 仮回答文でEmbedding
+  │         （ENABLE_HYDE=true 時のみ）
+  │
+  ├─[ベクトル検索]→ ChromaDB から上位N件
+  │
+  ├─[キーワード検索]→ PostgreSQL 全文検索で上位N件
+  │                   （ENABLE_HYBRID=true 時のみ）
+  │
+  ├─[RRF統合]→ ベクトル + キーワード のスコアを Reciprocal Rank Fusion で統合
+  │
+  └─[リランキング]→ LLMが検索結果の関連度を再評価し並び替え
+                    （ENABLE_RERANK=true 時のみ）
+```
+
 ## 4. データストア設計
 
 ### 4.1 PostgreSQL (メタデータ + チャンク本文)

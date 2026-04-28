@@ -370,6 +370,48 @@ def delete_generation(generation_id: UUID) -> bool:
         return cur.rowcount > 0
 
 
+def keyword_search(
+    query: str,
+    source_type: str | None = None,
+    n_results: int = 10,
+) -> list[dict[str, Any]]:
+    """PostgreSQLの全文検索（LIKE）でチャンクを検索する。
+
+    日本語対応のため、to_tsvectorではなくLIKE検索を使用。
+    """
+    with get_conn() as conn, conn.cursor(
+        cursor_factory=psycopg2.extras.RealDictCursor
+    ) as cur:
+        # クエリをスペースで分割し、全キーワードを含むチャンクを検索
+        keywords = [k.strip() for k in query.split() if k.strip()]
+        if not keywords:
+            return []
+
+        conditions = ["c.content ILIKE %s" for _ in keywords]
+        params: list[Any] = [f"%{kw}%" for kw in keywords]
+
+        if source_type:
+            conditions.append("d.source_type = %s")
+            params.append(source_type)
+
+        where = " AND ".join(conditions)
+        params.append(n_results)
+
+        cur.execute(
+            f"""
+            SELECT c.id, c.document_id, c.chunk_index, c.content, c.vector_id,
+                   d.source_type, d.source_system, d.external_id, d.title
+            FROM chunks c
+            JOIN documents d ON c.document_id = d.id
+            WHERE {where}
+            ORDER BY c.chunk_index
+            LIMIT %s
+            """,
+            params,
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
 def get_stats() -> dict[str, int]:
     """システム統計を取得する。"""
     with get_conn() as conn, conn.cursor() as cur:

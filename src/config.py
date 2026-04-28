@@ -39,6 +39,11 @@ class Config:
     # Templates
     templates_path: str = os.getenv("TEMPLATES_PATH", "./data/templates")
 
+    # 検索改善
+    enable_rerank: bool = os.getenv("ENABLE_RERANK", "false").lower() == "true"
+    enable_hybrid: bool = os.getenv("ENABLE_HYBRID", "false").lower() == "true"
+    enable_hyde: bool = os.getenv("ENABLE_HYDE", "false").lower() == "true"
+
     # Repository Sync
     repos_config_path: str = os.getenv("REPOS_CONFIG_PATH", "./data/repos.yaml")
     repos_data_path: str = os.getenv("REPOS_DATA_PATH", "./data/repos")

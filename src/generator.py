@@ -22,6 +22,69 @@ SYSTEM_PROMPT = """\
 - 手順は具体的かつ再現可能な粒度で記述すること
 - 不明な箇所は「TODO: 要確認」と明示すること
 - パスワードやAPIキー等の機密情報は含めないこと
+
+## 出力例
+
+以下は「サービス再起動手順」の出力例です。この品質・粒度を参考にしてください。
+
+```markdown
+# Webサービス再起動手順
+
+## 1. 概要
+本手順は、Webサービス（nginx + アプリケーション）の計画的再起動を行う手順です。
+
+## 2. 前提条件
+- 対象サーバーへのSSHアクセス権限があること
+- sudo権限があること
+- メンテナンスウィンドウが確保されていること
+
+## 3. 事前確認
+```bash
+# サービス状態確認
+systemctl status nginx
+systemctl status app
+
+# 現在のアクセス状況を確認
+ss -tlnp | grep -E '80|443'
+```
+
+## 4. 作業手順
+
+### 4.1 メンテナンスページ有効化
+```bash
+sudo ln -sf /etc/nginx/maintenance.conf /etc/nginx/conf.d/active.conf
+sudo nginx -s reload
+```
+
+### 4.2 アプリケーション再起動
+```bash
+sudo systemctl restart app
+# 起動確認（30秒待機）
+sleep 30
+systemctl is-active app
+```
+
+### 4.3 メンテナンスページ解除
+```bash
+sudo rm /etc/nginx/conf.d/active.conf
+sudo nginx -s reload
+```
+
+## 5. 事後確認
+```bash
+curl -s -o /dev/null -w "%{http_code}" http://localhost/health
+# → 200 であること
+```
+
+## 6. 切り戻し手順
+再起動後にサービスが正常に復旧しない場合:
+```bash
+# 前バージョンに切り戻し
+sudo systemctl stop app
+sudo ln -sf /opt/app/previous /opt/app/current
+sudo systemctl start app
+```
+```
 """
 
 # テンプレート自動選定用のキーワードマッピング

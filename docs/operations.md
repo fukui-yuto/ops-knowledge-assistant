@@ -293,4 +293,7 @@ docker compose up -d
 | REPOS_CONFIG_PATH | ./data/repos.yaml | リポジトリ設定ファイルパス |
 | REPOS_DATA_PATH | ./data/repos | リポジトリクローン先パス |
 | REPO_SYNC_INTERVAL | 3600 | リポジトリ同期間隔（秒、デフォルト1時間） |
+| ENABLE_RERANK | false | LLMリランキングを有効化（true/false） |
+| ENABLE_HYBRID | false | ハイブリッド検索を有効化（true/false） |
+| ENABLE_HYDE | false | HyDE（仮回答生成検索）を有効化（true/false） |
 | REPO_TOKEN_* | - | リポジトリアクセストークン（repos.yamlのtoken_envで参照） |
