@@ -33,8 +33,9 @@ ops-knowledge-assistant/
 │   ├── 02_knowledge.py      # ナレッジ管理ページ
 │   ├── 03_templates.py      # テンプレートページ
 │   ├── 04_search.py         # 検索ページ
-│   ├── 05_settings.py       # 設定ページ
-│   └── 06_repos.py          # リポジトリ管理ページ
+│   ├── 05_qa.py             # 質問ページ（QA）
+│   ├── 06_settings.py       # 設定ページ
+│   └── 07_repos.py          # リポジトリ管理ページ
 ├── sync.py                  # ナレッジ同期CLI（メインの取り込み手段）
 ├── repo_sync.py             # リポジトリ同期CLI（外部Git定期pull）
 ├── generate.py              # 手順書生成CLI（タイトルだけで生成可能）
@@ -51,6 +52,7 @@ ops-knowledge-assistant/
 │   ├── generator.py         # LLM手順書生成
 │   ├── watcher.py           # ナレッジディレクトリのファイル監視（watchdog）
 │   ├── repo_sync.py         # 外部Gitリポジトリ同期（clone/pull + ファイル配置）
+│   ├── qa.py                # ナレッジQAエンジン（質問応答）
 │   └── schema.sql           # PostgreSQL DDL
 ├── tests/                   # テスト
 │   ├── test_config.py
@@ -58,6 +60,7 @@ ops-knowledge-assistant/
 │   ├── test_chunking.py
 │   ├── test_sync.py
 │   ├── test_repo_sync.py
+│   ├── test_qa.py
 │   └── test_generator.py
 ├── docker-compose.yml       # Docker Compose 構成
 ├── Dockerfile               # アプリコンテナ定義
@@ -145,7 +148,7 @@ ops-knowledge-assistant/
 ## テスト
 - pytest を使用（`uv run pytest tests/ -v`）
 - LLM/Embedding 呼び出しはモックで単体テスト
-- テスト対象: config, storage, chunking, sync, repo_sync, generator（40テスト）
+- テスト対象: config, storage, chunking, sync, repo_sync, qa, generator
 
 ## よく使うコマンド
 

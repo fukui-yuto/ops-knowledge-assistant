@@ -22,10 +22,11 @@
        v                       v
 ┌─────────────────────────────────────────────────────────────────┐
 │                      コアエンジン                                  │
-│  ┌──────────┐  ┌───────────┐  ┌──────────────┐                  │
-│  │ Ingestion│  │ Generator │  │   Retriever  │                  │
-│  │ Pipeline │  │ (LLM生成) │  │  (検索層)    │                  │
-│  └──┬───┬───┘  └──┬────┬───┘  └──┬────┬─────┘                  │
+│  ┌──────────┐  ┌───────────┐  ┌──────────┐  ┌──────────────┐    │
+│  │ Ingestion│  │ Generator │  │    QA    │  │   Retriever  │    │
+│  │ Pipeline │  │ (LLM生成) │  │ (質問応答)│  │  (検索層)    │    │
+│  └──┬───┬───┘  └──┬────┬───┘  └──┬───┬──┘  └──┬────┬─────┘    │
+│     │   │         │    │         │   │         │    │            │
 │     │   │         │    │         │    │                          │
 │     v   v         v    v         v    v                          │
 │  ┌────┐┌─────┐┌───────┐┌───────────┐┌─────────────┐            │
@@ -48,6 +49,7 @@
 | Ingestion | ingestion.py | 取り込みパイプライン統合 | Storage, DB, VectorStore, Chunking, Embedding |
 | Retriever | retriever.py | ベクトル検索 + ドキュメント全文取得 | DB, VectorStore, Embedding |
 | Generator | generator.py | LLM手順書生成 | Retriever, Config |
+| QA | qa.py | ナレッジに基づく質問応答 | Retriever, Config |
 | SyncCLI | sync.py | ナレッジ同期（メイン取り込み手段） | Ingestion, DB |
 | GenerateCLI | generate.py | 手順書生成CLI | Generator |
 | HealthCheck | healthcheck.py | 全コンポーネントのヘルスチェック | DB, VectorStore, Config |
@@ -171,6 +173,26 @@ uv run python sync.py  （または watchdog による自動実行）
   │     └─ ユーザー指示（タイトル・説明・追加情報）
   │
   └─5→ LLM（Gemini or OpenAI）で生成 → Markdown出力
+```
+
+### 3.6 QAフロー (Question Answering)
+
+```
+ユーザーの質問（自然言語）
+  │
+  ├─1→ 質問文でベクトル検索（wiki + issue 両コレクション）
+  │     └─ 上位N件のチャンクを取得、ドキュメント単位で重複排除
+  │        └─ document_id で PostgreSQL から全文取得
+  │
+  ├─2→ プロンプト組み立て
+  │     ├─ システムプロンプト（運用ナレッジに基づく回答の専門家ロール）
+  │     ├─ 関連ナレッジ（検索結果の全文）
+  │     ├─ 会話履歴（セッション内の過去のやりとり）
+  │     └─ ユーザーの質問
+  │
+  ├─3→ LLM（Gemini or OpenAI）で回答生成
+  │
+  └─4→ 回答 + 参照元ドキュメント情報を返却
 ```
 
 ## 4. データストア設計
