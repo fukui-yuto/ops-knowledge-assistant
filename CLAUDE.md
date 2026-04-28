@@ -32,19 +32,27 @@ ops-knowledge-assistant/
 │   ├── 03_templates.py      # テンプレートページ
 │   ├── 04_search.py         # 検索ページ
 │   └── 05_settings.py       # 設定ページ
-├── config.py                # 設定管理（環境変数ベース）
-├── db.py                    # PostgreSQL アクセス層
-├── vector_store.py          # ChromaDB ラッパー
-├── chunking.py              # ソース種別ごとのチャンク戦略
-├── embedding.py             # Gemini Embedding
-├── storage.py               # 原本ファイルストレージ（LocalStorage）
-├── ingestion.py             # 取り込みパイプライン
-├── retriever.py             # ベクトル検索（関連手順取得）
-├── generator.py             # LLM手順書生成
 ├── sync.py                  # ナレッジ同期CLI（メインの取り込み手段）
 ├── generate.py              # 手順書生成CLI（タイトルだけで生成可能）
-├── ingest_cli.py            # 単体取り込みCLI（高度な操作用）
-├── schema.sql               # PostgreSQL DDL
+├── src/                     # コアパッケージ
+│   ├── __init__.py
+│   ├── config.py            # 設定管理（環境変数ベース）
+│   ├── db.py                # PostgreSQL アクセス層
+│   ├── vector_store.py      # ChromaDB ラッパー
+│   ├── chunking.py          # ソース種別ごとのチャンク戦略
+│   ├── embedding.py         # Gemini Embedding
+│   ├── storage.py           # 原本ファイルストレージ
+│   ├── ingestion.py         # 取り込みパイプライン
+│   ├── retriever.py         # ベクトル検索
+│   ├── generator.py         # LLM手順書生成
+│   └── schema.sql           # PostgreSQL DDL
+├── tests/                   # テスト
+│   ├── test_config.py
+│   ├── test_storage.py
+│   ├── test_chunking.py
+│   ├── test_sync.py
+│   └── test_generator.py
+├── pyproject.toml           # uv パッケージ管理
 ├── data/
 │   ├── templates/           # テンプレート手順書（Git管理対象）
 │   ├── knowledge/           # ナレッジ配置ディレクトリ（ユーザーがここにファイルを置く）
@@ -54,7 +62,6 @@ ops-knowledge-assistant/
 │   │   └── log/{source_system}/*.md
 │   ├── raw/                 # 取り込み済み原本（gitignore）
 │   └── chroma/              # ChromaDB 永続化（gitignore）
-├── requirements.txt
 ├── .env.example
 └── .gitignore
 ```
@@ -126,15 +133,21 @@ ops-knowledge-assistant/
 
 ## よく使うコマンド
 ```bash
+# 依存パッケージインストール
+uv sync
+
 # GUI起動（推奨）
-streamlit run app.py
+uv run streamlit run app.py
 
 # ナレッジ同期（CLIの場合）
-python sync.py
+uv run python sync.py
 
 # 手順書生成（CLIの場合）
-python generate.py "タイトル"
+uv run python generate.py "タイトル"
 
 # テンプレート一覧
-python generate.py --list-templates
+uv run python generate.py --list-templates
+
+# テスト実行
+uv run pytest tests/ -v
 ```

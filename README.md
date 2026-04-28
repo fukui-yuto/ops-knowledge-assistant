@@ -15,16 +15,19 @@ Web GUI またはコマンドライン、どちらからでも操作可能。
 ## クイックスタート
 
 ```bash
-# セットアップ
-pip install -r requirements.txt
+# セットアップ（uv使用）
+uv sync
 cp .env.example .env          # GOOGLE_API_KEY を設定
 
 # GUI で使う場合（推奨）
-streamlit run app.py          # ブラウザで http://localhost:8501
+uv run streamlit run app.py   # ブラウザで http://localhost:8501
 
 # CLI で使う場合
-python sync.py --init-schema  # 初回: DB初期化 + ナレッジ同期
-python generate.py "Proxmox バックアップ手順"
+uv run python sync.py --init-schema  # 初回: DB初期化 + ナレッジ同期
+uv run python generate.py "Proxmox バックアップ手順"
+
+# テスト
+uv run pytest tests/ -v
 ```
 
 ## GUI で操作（コマンド不要）
