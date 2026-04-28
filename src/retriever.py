@@ -15,19 +15,21 @@ class Retriever:
         self.embedder = GeminiEmbedder()
         self.vstore = VectorStore()
 
-    def search_procedures(
+    def search(
         self,
         query: str,
+        source_type: str = "procedure",
         n_results: int = 5,
         where: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """
-        クエリに関連する過去手順を検索する。
+        クエリに関連するナレッジを検索する。
+        source_type で検索対象コレクションを指定する。
         Returns: [{document_id, title, chunk_content, score, ...}, ...]
         """
         query_embedding = self.embedder.embed_query(query)
         results = self.vstore.query(
-            source_type="procedure",
+            source_type=source_type,
             query_embedding=query_embedding,
             n_results=n_results,
             where=where,
@@ -67,6 +69,15 @@ class Retriever:
             hit["external_id"] = doc_info.get("external_id", "")
 
         return hits
+
+    def search_procedures(
+        self,
+        query: str,
+        n_results: int = 5,
+        where: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """後方互換エイリアス。procedure コレクションを検索する。"""
+        return self.search(query, source_type="procedure", n_results=n_results, where=where)
 
     def get_full_document_text(self, document_id: str) -> str:
         """ドキュメントの全チャンクを結合して全文を返す。"""

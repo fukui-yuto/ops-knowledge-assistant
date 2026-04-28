@@ -1,5 +1,4 @@
 """ナレッジ管理ページ"""
-import tempfile
 from pathlib import Path
 
 import streamlit as st
@@ -21,7 +20,7 @@ col1, col2 = st.columns(2)
 with col1:
     source_type = st.selectbox("種別", ["procedure", "ticket", "config", "log"])
 with col2:
-    source_system = st.text_input("システム", placeholder="confluence, jira, proxmox 等")
+    source_system = st.text_input("システム", placeholder="confluence, jira, k8s 等")
 
 uploaded_file = st.file_uploader("Markdownファイルを選択", type=["md"])
 
@@ -29,26 +28,27 @@ if st.button("アップロード", disabled=not (uploaded_file and source_system
     try:
         pipeline = get_pipeline()
 
-        # 一時ファイルに保存して取り込み
         import re
+        from src.config import config
+
         content = uploaded_file.read().decode("utf-8")
         filename = Path(uploaded_file.name).stem
         title_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
         title = title_match.group(1).strip() if title_match else filename
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as f:
-            f.write(content)
-            tmp_path = f.name
+        # data/knowledge/ にもファイルを配置（sync.py との整合性を保つ）
+        knowledge_dir = Path(config.knowledge_path) / source_type / source_system
+        knowledge_dir.mkdir(parents=True, exist_ok=True)
+        knowledge_file = knowledge_dir / f"{filename}.md"
+        knowledge_file.write_text(content, encoding="utf-8")
 
         result = pipeline.ingest_file(
-            src_path=tmp_path,
+            src_path=str(knowledge_file),
             source_type=source_type,
             source_system=source_system,
             external_id=filename,
             title=title,
         )
-
-        Path(tmp_path).unlink(missing_ok=True)
 
         if result["action"] == "created":
             st.success(f"追加しました: 「{title}」 ({result['chunks']} chunks)")
@@ -96,12 +96,28 @@ try:
             if col_e.button("🗑", key=f"del_{doc['id']}"):
                 try:
                     from src import db as db_module
+                    from src.config import config as app_config
+                    from src.storage import LocalStorage
                     from src.vector_store import VectorStore
 
+                    # DB + ChromaDB から削除
                     vector_ids = db_module.delete_document(doc["id"])
                     if vector_ids:
                         vstore = VectorStore()
                         vstore.delete(doc["source_type"], vector_ids)
+
+                    # data/knowledge/ からも削除（sync.py との整合性）
+                    ext_id = doc.get("external_id", "")
+                    sys_name = doc.get("source_system", "")
+                    if ext_id and sys_name:
+                        kf = Path(app_config.knowledge_path) / doc["source_type"] / sys_name / f"{ext_id}.md"
+                        kf.unlink(missing_ok=True)
+
+                    # data/raw/ からも削除
+                    storage = LocalStorage(app_config.raw_storage_path)
+                    raw_path = f"{doc['source_type']}/{sys_name}/{ext_id}.md"
+                    storage.delete(raw_path)
+
                     st.success(f"削除しました: {doc['title']}")
                     st.cache_data.clear()
                     st.rerun()

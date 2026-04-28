@@ -35,7 +35,7 @@ def main():
         return
 
     if not args.title:
-        parser.error("タイトルを指定してください（例: python generate.py \"Proxmox バックアップ手順\"）")
+        parser.error("タイトルを指定してください（例: python generate.py \"PostgreSQL バックアップ手順\"）")
 
     # 進捗表示（stderrへ）
     template_name = args.template or generator.auto_select_template(args.title)

@@ -66,8 +66,8 @@ def run_sync(
     dry_run: bool = False,
 ) -> dict[str, int]:
     """ナレッジディレクトリとDBを同期する。"""
-    pipeline = IngestionPipeline()
-    vstore = VectorStore()
+    pipeline = None if dry_run else IngestionPipeline()
+    vstore = None if dry_run else VectorStore()
     stats = {"added": 0, "updated": 0, "skipped": 0, "deleted": 0, "errors": 0}
 
     # 1. ナレッジディレクトリを走査
@@ -105,7 +105,9 @@ def run_sync(
             print(f"[error]  {f['source_type']}/{f['source_system']}/{f['external_id']}.md → {e}", file=sys.stderr)
             stats["errors"] += 1
 
-    # 3. DB にあるがディレクトリにないファイルを削除
+    # 3. DB にあるがディレクトリにないファイルを削除（dry-run時はスキップ）
+    if dry_run:
+        return stats
     existing_docs = db.get_all_external_ids()
     for (sys_name, ext_id), doc_id in existing_docs.items():
         if (sys_name, ext_id) not in file_keys:

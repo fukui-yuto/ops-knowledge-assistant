@@ -11,7 +11,7 @@ def get_retriever():
     return Retriever()
 
 
-query = st.text_input("検索クエリ", placeholder="例: Proxmox バックアップ")
+query = st.text_input("検索クエリ", placeholder="例: PostgreSQL バックアップ")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -23,13 +23,21 @@ if st.button("検索", disabled=not query):
     try:
         retriever = get_retriever()
 
-        where = None
         if source_type_filter != "全て":
-            where = {"source_type": source_type_filter}
-
-        # procedure コレクションで検索（他のtypeも順次対応）
-        search_type = source_type_filter if source_type_filter != "全て" else "procedure"
-        results = retriever.search_procedures(query, n_results=n_results, where=where)
+            # 特定コレクションを検索
+            results = retriever.search(query, source_type=source_type_filter, n_results=n_results)
+        else:
+            # 全コレクションを検索して統合
+            results = []
+            for stype in ["procedure", "ticket", "config", "log"]:
+                try:
+                    hits = retriever.search(query, source_type=stype, n_results=n_results)
+                    results.extend(hits)
+                except Exception:
+                    pass
+            # 距離でソートして上位N件に絞る
+            results.sort(key=lambda x: x.get("distance", float("inf")))
+            results = results[:n_results]
 
         if results:
             st.markdown(f"### 検索結果 ({len(results)} 件)")

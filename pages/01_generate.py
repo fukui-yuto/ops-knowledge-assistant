@@ -20,7 +20,7 @@ except Exception as e:
     st.stop()
 
 # メイン入力
-title = st.text_input("タイトル", placeholder="例: Proxmox バックアップ手順")
+title = st.text_input("タイトル", placeholder="例: PostgreSQL バックアップ手順")
 
 # 詳細オプション（折りたたみ）
 with st.expander("詳細オプション"):
