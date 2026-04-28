@@ -20,11 +20,11 @@ class Config:
     knowledge_path: str = os.getenv("KNOWLEDGE_PATH", "./data/knowledge")
 
     # Embedding
-    embedding_model: str = os.getenv("EMBEDDING_MODEL", "models/text-embedding-004")
+    embedding_model: str = os.getenv("EMBEDDING_MODEL", "models/gemini-embedding-001")
     google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
 
     # Generation
-    generation_model: str = os.getenv("GENERATION_MODEL", "gemini-2.0-flash")
+    generation_model: str = os.getenv("GENERATION_MODEL", "gemini-2.5-flash-lite")
 
     # Chunking
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "800"))

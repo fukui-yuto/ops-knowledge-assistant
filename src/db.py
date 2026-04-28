@@ -295,6 +295,81 @@ def fetch_documents_by_ids(ids: list[UUID]) -> list[dict[str, Any]]:
         return [dict(r) for r in cur.fetchall()]
 
 
+# ----------------------------------------------------------------
+# generation_log
+# ----------------------------------------------------------------
+def save_generation(
+    *,
+    title: str,
+    description: str,
+    template_used: str,
+    reference_docs: list[dict[str, Any]],
+    model: str,
+    content: str,
+    has_todos: bool,
+) -> UUID:
+    """生成結果をDBに保存する。"""
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO generation_log
+              (title, description, template_used, reference_docs, model, content, has_todos)
+            VALUES (%s, %s, %s, %s::jsonb, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                title,
+                description,
+                template_used,
+                json.dumps(reference_docs),
+                model,
+                content,
+                has_todos,
+            ),
+        )
+        return cur.fetchone()[0]
+
+
+def list_generations(limit: int = 20) -> list[dict[str, Any]]:
+    """生成履歴の一覧を取得する。"""
+    with get_conn() as conn, conn.cursor(
+        cursor_factory=psycopg2.extras.RealDictCursor
+    ) as cur:
+        cur.execute(
+            """
+            SELECT id, title, template_used, model, has_todos, created_at
+              FROM generation_log
+             ORDER BY created_at DESC
+             LIMIT %s
+            """,
+            (limit,),
+        )
+        return [dict(r) for r in cur.fetchall()]
+
+
+def get_generation(generation_id: UUID) -> dict[str, Any] | None:
+    """生成結果の詳細を取得する。"""
+    with get_conn() as conn, conn.cursor(
+        cursor_factory=psycopg2.extras.RealDictCursor
+    ) as cur:
+        cur.execute(
+            "SELECT * FROM generation_log WHERE id = %s",
+            (str(generation_id),),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+
+def delete_generation(generation_id: UUID) -> bool:
+    """生成履歴を削除する。"""
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM generation_log WHERE id = %s",
+            (str(generation_id),),
+        )
+        return cur.rowcount > 0
+
+
 def get_stats() -> dict[str, int]:
     """システム統計を取得する。"""
     with get_conn() as conn, conn.cursor() as cur:

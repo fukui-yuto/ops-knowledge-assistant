@@ -1,4 +1,4 @@
-"""テンプレートページ"""
+"""テンプレート管理ページ"""
 from pathlib import Path
 
 import streamlit as st
@@ -9,26 +9,59 @@ st.set_page_config(page_title="テンプレート", page_icon="📋", layout="wi
 st.title("📋 テンプレート管理")
 
 templates_dir = Path(config.templates_path)
+templates_dir.mkdir(parents=True, exist_ok=True)
 
-if not templates_dir.exists():
-    st.warning(f"テンプレートディレクトリが見つかりません: {templates_dir}")
-    st.stop()
+# --- アップロードセクション ---
+st.markdown("### テンプレート登録")
+
+col_up1, col_up2 = st.columns(2)
+with col_up1:
+    template_name = st.text_input("テンプレート名", placeholder="例: k8s, network, security")
+with col_up2:
+    upload_method = st.radio("登録方法", ["ファイルアップロード", "直接入力"], horizontal=True)
+
+if upload_method == "ファイルアップロード":
+    uploaded_file = st.file_uploader("Markdownファイルを選択", type=["md"], key="tmpl_upload")
+    template_content = None
+    if uploaded_file:
+        template_content = uploaded_file.read().decode("utf-8")
+        if not template_name:
+            template_name = Path(uploaded_file.name).stem
+else:
+    template_content = st.text_area(
+        "テンプレート内容 (Markdown)",
+        height=300,
+        placeholder="# {{title}}\n\n## 概要\n...",
+    )
+
+if st.button("登録", disabled=not (template_name and template_content)):
+    save_path = templates_dir / f"{template_name}.md"
+    if save_path.exists():
+        st.warning(f"テンプレート「{template_name}」は既に存在します。上書きしますか？")
+        if st.button("上書き確認", key="overwrite_confirm"):
+            save_path.write_text(template_content, encoding="utf-8")
+            st.success(f"テンプレート「{template_name}」を上書きしました。")
+            st.rerun()
+    else:
+        save_path.write_text(template_content, encoding="utf-8")
+        st.success(f"テンプレート「{template_name}」を登録しました。")
+        st.rerun()
+
+# --- 一覧セクション ---
+st.markdown("---")
+st.markdown("### 登録済みテンプレート一覧")
 
 template_files = sorted(templates_dir.glob("*.md"))
 
 if not template_files:
-    st.info("テンプレートが登録されていません。data/templates/ にMarkdownファイルを配置してください。")
+    st.info("テンプレートが登録されていません。上のフォームからアップロードしてください。")
     st.stop()
-
-# テンプレート一覧
-st.markdown("### テンプレート一覧")
 
 selected = st.selectbox(
     "テンプレートを選択",
     [f.stem for f in template_files],
 )
 
-# プレビュー
 if selected:
     path = templates_dir / f"{selected}.md"
     content = path.read_text(encoding="utf-8")
@@ -41,9 +74,19 @@ if selected:
     with tab2:
         st.code(content, language="markdown")
 
-    st.download_button(
-        "ダウンロード",
-        data=content,
-        file_name=f"{selected}.md",
-        mime="text/markdown",
-    )
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.download_button(
+            "ダウンロード",
+            data=content,
+            file_name=f"{selected}.md",
+            mime="text/markdown",
+        )
+    with col_b:
+        if selected != "default":
+            if st.button("このテンプレートを削除", key=f"del_tmpl_{selected}"):
+                path.unlink()
+                st.success(f"テンプレート「{selected}」を削除しました。")
+                st.rerun()
+        else:
+            st.caption("default テンプレートは削除できません")

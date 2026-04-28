@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS generation_log (
     template_used   TEXT NOT NULL,
     reference_docs  JSONB NOT NULL DEFAULT '[]'::jsonb,
     model           TEXT NOT NULL,
+    content         TEXT NOT NULL DEFAULT '',
     output_path     TEXT,
     has_todos       BOOLEAN NOT NULL DEFAULT false,
     created_at      TIMESTAMP DEFAULT NOW()

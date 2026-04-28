@@ -24,10 +24,8 @@ if st.button("検索", disabled=not query):
         retriever = get_retriever()
 
         if source_type_filter != "全て":
-            # 特定コレクションを検索
             results = retriever.search(query, source_type=source_type_filter, n_results=n_results)
         else:
-            # 全コレクションを検索して統合
             results = []
             for stype in ["procedure", "ticket", "config", "log"]:
                 try:
@@ -35,28 +33,39 @@ if st.button("検索", disabled=not query):
                     results.extend(hits)
                 except Exception:
                     pass
-            # 距離でソートして上位N件に絞る
             results.sort(key=lambda x: x.get("distance", float("inf")))
             results = results[:n_results]
 
-        if results:
-            st.markdown(f"### 検索結果 ({len(results)} 件)")
-            for i, hit in enumerate(results, 1):
-                distance = hit.get("distance", None)
-                similarity = f"{1 - distance:.2f}" if distance is not None else "N/A"
-
-                with st.expander(f"{i}. {hit.get('title', '(タイトル不明)')} (類似度: {similarity})"):
-                    st.caption(f"source: {hit.get('source_system', '')} | external_id: {hit.get('external_id', '')}")
-                    st.markdown(hit.get("chunk_content", ""))
-
-                    if st.button(f"全文を見る", key=f"full_{i}"):
-                        doc_id = hit.get("document_id", "")
-                        if doc_id:
-                            full_text = retriever.get_full_document_text(doc_id)
-                            st.markdown(full_text)
-        else:
-            st.info("該当する結果がありませんでした。")
+        st.session_state["search_results"] = results
+        st.session_state["search_query"] = query
 
     except Exception as e:
         st.error(f"検索エラー: {e}")
         st.info("PostgreSQL と ChromaDB が起動しているか確認してください。")
+
+# session_state に結果があれば表示
+if "search_results" in st.session_state:
+    results = st.session_state["search_results"]
+
+    if results:
+        st.markdown(f"### 検索結果 ({len(results)} 件)")
+        for i, hit in enumerate(results, 1):
+            distance = hit.get("distance", None)
+            similarity = f"{1 - distance:.2f}" if distance is not None else "N/A"
+
+            with st.expander(f"{i}. {hit.get('title', '(タイトル不明)')} (類似度: {similarity})"):
+                st.caption(f"source: {hit.get('source_system', '')} | external_id: {hit.get('external_id', '')}")
+                st.markdown(hit.get("chunk_content", ""))
+
+                # 全文表示もsession_stateで保持
+                full_key = f"full_text_{i}"
+                if st.button("全文を見る", key=f"full_{i}"):
+                    doc_id = hit.get("document_id", "")
+                    if doc_id:
+                        retriever = get_retriever()
+                        st.session_state[full_key] = retriever.get_full_document_text(doc_id)
+
+                if full_key in st.session_state:
+                    st.markdown(st.session_state[full_key])
+    else:
+        st.info("該当する結果がありませんでした。")
