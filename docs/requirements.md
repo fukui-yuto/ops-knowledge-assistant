@@ -256,7 +256,7 @@ data/knowledge/
 ```
 
 - 第2階層はリポジトリ名（repos.yaml の `name`）または `local`（手動配置用）
-- リポジトリ同期時はリポジトリ内の指定パスから .md ファイルがコピーされる
+- リポジトリ同期時はリポジトリ内の指定パス（複数指定可）から .md ファイルがコピーされる
 - `local/` はGUIアップロードおよびローカルファイル配置用の固定名
 
 ### 自動推定ルール
@@ -280,15 +280,19 @@ repositories:
     branch: main
     token_env: REPO_TOKEN_TEAM_A          # .env の環境変数名を参照
     paths:
-      wiki: docs/procedures               # リポジトリ内のwiki対象ディレクトリ
-      issue: docs/incidents               # リポジトリ内のissue対象ディレクトリ（空欄可）
+      wiki:                               # リスト形式（複数パス指定可）
+        - docs/procedures
+        - docs/runbooks
+      issue:
+        - docs/incidents
+        - docs/postmortems
 
   - name: team-b
     url: https://gitlab.example.com/team-b/runbooks.git
     branch: main
     token_env: REPO_TOKEN_TEAM_B
     paths:
-      wiki: wiki
+      wiki: wiki                          # 文字列形式（単一パス）も可
       issue: ""                           # issueなし
 ```
 
