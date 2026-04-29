@@ -6,6 +6,7 @@ import pytest
 
 from src.repo_sync import (
     _get_repo_url_with_token,
+    _normalize_paths,
     load_repos_config,
     save_repos_config,
     sync_repo_files,
@@ -144,3 +145,97 @@ def test_sync_repo_files_skips_unchanged(tmp_path):
         stats = sync_repo_files(repo_config)
 
     assert stats["copied"] == 0
+
+
+class TestNormalizePaths:
+    """_normalize_paths のテスト。"""
+
+    def test_none(self):
+        assert _normalize_paths(None) == []
+
+    def test_empty_string(self):
+        assert _normalize_paths("") == []
+
+    def test_single_string(self):
+        assert _normalize_paths("docs/wiki") == ["docs/wiki"]
+
+    def test_list(self):
+        assert _normalize_paths(["docs/a", "docs/b"]) == ["docs/a", "docs/b"]
+
+    def test_list_with_empty(self):
+        assert _normalize_paths(["docs/a", "", "docs/b"]) == ["docs/a", "docs/b"]
+
+
+def test_sync_repo_files_multiple_paths(tmp_path):
+    """複数パス指定で全パスからファイルがコピーされること。"""
+    repos_dir = tmp_path / "repos" / "team-a"
+
+    # wiki の複数パス
+    wiki_src1 = repos_dir / "docs" / "procedures"
+    wiki_src1.mkdir(parents=True)
+    (wiki_src1 / "setup.md").write_text("# Setup", encoding="utf-8")
+
+    wiki_src2 = repos_dir / "docs" / "runbooks"
+    wiki_src2.mkdir(parents=True)
+    (wiki_src2 / "deploy.md").write_text("# Deploy", encoding="utf-8")
+
+    # issue の複数パス
+    issue_src1 = repos_dir / "docs" / "incidents"
+    issue_src1.mkdir(parents=True)
+    (issue_src1 / "ISS-001.md").write_text("# Incident 001", encoding="utf-8")
+
+    issue_src2 = repos_dir / "docs" / "postmortems"
+    issue_src2.mkdir(parents=True)
+    (issue_src2 / "PM-001.md").write_text("# Postmortem 001", encoding="utf-8")
+
+    knowledge_dir = tmp_path / "knowledge"
+    knowledge_dir.mkdir()
+
+    repo_config = {
+        "name": "team-a",
+        "paths": {
+            "wiki": ["docs/procedures", "docs/runbooks"],
+            "issue": ["docs/incidents", "docs/postmortems"],
+        },
+    }
+
+    with patch("src.repo_sync.config") as mock_config:
+        mock_config.repos_data_path = str(tmp_path / "repos")
+        mock_config.knowledge_path = str(knowledge_dir)
+        stats = sync_repo_files(repo_config)
+
+    assert stats["copied"] == 4
+    assert (knowledge_dir / "wiki" / "team-a" / "setup.md").exists()
+    assert (knowledge_dir / "wiki" / "team-a" / "deploy.md").exists()
+    assert (knowledge_dir / "issue" / "team-a" / "ISS-001.md").exists()
+    assert (knowledge_dir / "issue" / "team-a" / "PM-001.md").exists()
+
+
+def test_sync_repo_files_multiple_paths_later_wins(tmp_path):
+    """複数パスで同名ファイルがある場合、後のパスが優先されること。"""
+    repos_dir = tmp_path / "repos" / "team-a"
+
+    wiki_src1 = repos_dir / "path1"
+    wiki_src1.mkdir(parents=True)
+    (wiki_src1 / "guide.md").write_text("# Old Version", encoding="utf-8")
+
+    wiki_src2 = repos_dir / "path2"
+    wiki_src2.mkdir(parents=True)
+    (wiki_src2 / "guide.md").write_text("# New Version", encoding="utf-8")
+
+    knowledge_dir = tmp_path / "knowledge"
+    knowledge_dir.mkdir()
+
+    repo_config = {
+        "name": "team-a",
+        "paths": {"wiki": ["path1", "path2"]},
+    }
+
+    with patch("src.repo_sync.config") as mock_config:
+        mock_config.repos_data_path = str(tmp_path / "repos")
+        mock_config.knowledge_path = str(knowledge_dir)
+        stats = sync_repo_files(repo_config)
+
+    assert stats["copied"] == 1
+    content = (knowledge_dir / "wiki" / "team-a" / "guide.md").read_text(encoding="utf-8")
+    assert content == "# New Version"

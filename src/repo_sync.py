@@ -117,14 +117,23 @@ def list_directory_tree(repo_name: str) -> list[dict[str, Any]]:
     return tree
 
 
+def _normalize_paths(raw: str | list[str] | None) -> list[str]:
+    """パス設定を文字列・リストどちらでもリスト形式に正規化する。"""
+    if not raw:
+        return []
+    if isinstance(raw, str):
+        return [raw] if raw.strip() else []
+    return [p for p in raw if p and p.strip()]
+
+
 def sync_repo_files(repo_config: dict[str, Any]) -> dict[str, int]:
     """リポジトリのファイルを knowledge/ にコピーする。
 
     repo_config:
       name: str
       paths:
-        wiki: "docs/procedures"  (リポジトリ内の相対パス)
-        issue: "docs/incidents"
+        wiki: "docs/procedures" | ["docs/procedures", "docs/runbooks"]
+        issue: "docs/incidents" | ["docs/incidents", "docs/postmortems"]
     """
     name = repo_config["name"]
     paths = repo_config.get("paths", {})
@@ -137,29 +146,30 @@ def sync_repo_files(repo_config: dict[str, Any]) -> dict[str, int]:
         return stats
 
     for source_type in VALID_SOURCE_TYPES:
-        src_rel = paths.get(source_type)
-        if not src_rel:
+        src_rels = _normalize_paths(paths.get(source_type))
+        if not src_rels:
             continue
 
-        src_dir = repo_path / src_rel
         dst_dir = knowledge_path / source_type / name
         dst_dir.mkdir(parents=True, exist_ok=True)
 
-        if not src_dir.exists():
-            logger.warning(f"[repo] {name}: パス {src_rel} が存在しません")
-            continue
-
-        # コピー元のファイル一覧
-        src_files = {f.name for f in src_dir.glob("*.md") if f.name != "README.md"}
+        # 全パスからコピー元ファイルを収集（後のパスが優先）
+        src_file_map: dict[str, Path] = {}
+        for src_rel in src_rels:
+            src_dir = repo_path / src_rel
+            if not src_dir.exists():
+                logger.warning(f"[repo] {name}: パス {src_rel} が存在しません")
+                continue
+            for f in src_dir.glob("*.md"):
+                if f.name != "README.md":
+                    src_file_map[f.name] = f
 
         # コピー先の既存ファイル一覧（削除検知用）
         dst_files = {f.name for f in dst_dir.glob("*.md")}
 
         # 新規・更新ファイルをコピー
-        for md_name in src_files:
-            src_file = src_dir / md_name
+        for md_name, src_file in src_file_map.items():
             dst_file = dst_dir / md_name
-            # ハッシュが変わった場合のみコピー（同期不要なファイルをスキップ）
             if dst_file.exists():
                 src_content = src_file.read_bytes()
                 dst_content = dst_file.read_bytes()
@@ -170,7 +180,7 @@ def sync_repo_files(repo_config: dict[str, Any]) -> dict[str, int]:
             stats["copied"] += 1
 
         # リポジトリから削除されたファイルを knowledge/ からも削除
-        removed = dst_files - src_files
+        removed = dst_files - set(src_file_map.keys())
         for md_name in removed:
             dst_file = dst_dir / md_name
             dst_file.unlink(missing_ok=True)

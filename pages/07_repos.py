@@ -45,23 +45,23 @@ if clone_btn and repo_url and repo_name:
             st.markdown("**Markdownファイルを含むディレクトリ:**")
             dir_paths = [d["path"] for d in dirs]
 
-            wiki_path = st.selectbox(
-                "Wiki パス（運用手順書の配置先）",
-                ["(なし)"] + dir_paths,
+            wiki_paths = st.multiselect(
+                "Wiki パス（運用手順書の配置先、複数選択可）",
+                dir_paths,
                 key="wiki_path_select",
             )
-            issue_path = st.selectbox(
-                "Issue パス（障害対応記録の配置先）",
-                ["(なし)"] + dir_paths,
+            issue_paths = st.multiselect(
+                "Issue パス（障害対応記録の配置先、複数選択可）",
+                dir_paths,
                 key="issue_path_select",
             )
 
             if st.button("設定を保存"):
                 paths = {}
-                if wiki_path != "(なし)":
-                    paths["wiki"] = wiki_path
-                if issue_path != "(なし)":
-                    paths["issue"] = issue_path
+                if wiki_paths:
+                    paths["wiki"] = wiki_paths if len(wiki_paths) > 1 else wiki_paths[0]
+                if issue_paths:
+                    paths["issue"] = issue_paths if len(issue_paths) > 1 else issue_paths[0]
 
                 if not paths:
                     st.warning("wiki または issue のパスを1つ以上選択してください。")
@@ -100,7 +100,10 @@ if repos:
     for repo in repos:
         name = repo["name"]
         paths = repo.get("paths", {})
-        path_info = ", ".join(f"{k}: {v}" for k, v in paths.items())
+        path_info = ", ".join(
+            f"{k}: {v if isinstance(v, str) else ', '.join(v)}"
+            for k, v in paths.items()
+        )
 
         with st.expander(f"📁 {name} — {repo.get('url', '')}"):
             st.markdown(f"**ブランチ:** {repo.get('branch', 'main')}")

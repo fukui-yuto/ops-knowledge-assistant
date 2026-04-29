@@ -92,9 +92,9 @@ data/knowledge/
   │     ├─ 未クローン → git clone → data/repos/{name}/
   │     └─ クローン済 → git pull
   │
-  ├─3→ パスマッピングに従いファイルをコピー:
-  │     ├─ repos/{name}/{paths.wiki}/*.md → knowledge/wiki/{name}/*.md
-  │     └─ repos/{name}/{paths.issue}/*.md → knowledge/issue/{name}/*.md
+  ├─3→ パスマッピングに従いファイルをコピー（複数パス対応）:
+  │     ├─ repos/{name}/{paths.wiki[0..N]}/*.md → knowledge/wiki/{name}/*.md
+  │     └─ repos/{name}/{paths.issue[0..N]}/*.md → knowledge/issue/{name}/*.md
   │
   └─4→ リポジトリから削除されたファイル → knowledge/ 側も削除
         └─ watchdog が検知 → 既存パイプラインで自動取り込み/削除
@@ -267,6 +267,33 @@ data/repos/
 
 リポジトリ同期の設定をYAMLファイルで管理する。GUIから編集可能。
 トークンは `.env` の環境変数名で参照し、YAML内にトークン値は書かない。
+
+`paths.wiki` / `paths.issue` は文字列（単一パス）またはリスト（複数パス）で指定可能:
+
+```yaml
+repos:
+  - name: team-a
+    url: https://gitlab.example.com/team-a/knowledge.git
+    branch: main
+    token_env: REPO_TOKEN_TEAM_A
+    paths:
+      wiki:                        # リスト形式（複数パス）
+        - docs/procedures
+        - docs/runbooks
+      issue:
+        - docs/incidents
+        - docs/postmortems
+
+  - name: team-b
+    url: https://gitlab.example.com/team-b/runbooks.git
+    branch: main
+    paths:
+      wiki: wiki                   # 文字列形式（単一パス、後方互換）
+      issue: ""
+```
+
+複数パスを指定した場合、各パス配下の `*.md` が全て `knowledge/{source_type}/{name}/` にコピーされる。
+ファイル名が重複する場合は後のパスが優先される。
 
 ## 5. 自動同期メカニズム
 

@@ -107,6 +107,23 @@ uv run python repo_sync.py --list
 | `--name` | string | No | - | 特定リポジトリのみ同期する |
 | `--list` | flag | No | - | 登録済みリポジトリ一覧を表示 |
 
+**パスマッピング**: `repos.yaml` の `paths.wiki` / `paths.issue` は文字列（単一パス）またはリスト（複数パス）で指定可能。
+
+```yaml
+# 単一パス
+paths:
+  wiki: docs/procedures
+
+# 複数パス
+paths:
+  wiki:
+    - docs/procedures
+    - docs/runbooks
+  issue:
+    - docs/incidents
+    - docs/postmortems
+```
+
 **出力例**:
 ```
 [repo] team-a: git pull...
