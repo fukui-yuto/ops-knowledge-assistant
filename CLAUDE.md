@@ -61,7 +61,8 @@ ops-knowledge-assistant/
 │   ├── test_sync.py
 │   ├── test_repo_sync.py
 │   ├── test_qa.py
-│   └── test_generator.py
+│   ├── test_generator.py
+│   └── test_retriever.py
 ├── docker-compose.yml       # Docker Compose 構成
 ├── Dockerfile               # アプリコンテナ定義
 ├── healthcheck.py           # ヘルスチェックスクリプト
@@ -148,7 +149,7 @@ ops-knowledge-assistant/
 ## テスト
 - pytest を使用（`uv run pytest tests/ -v`）
 - LLM/Embedding 呼び出しはモックで単体テスト
-- テスト対象: config, storage, chunking, sync, repo_sync, qa, generator
+- テスト対象: config, storage, chunking, sync, repo_sync, qa, generator, retriever
 
 ## よく使うコマンド
 

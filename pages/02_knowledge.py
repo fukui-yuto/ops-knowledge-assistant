@@ -96,17 +96,20 @@ try:
                         vstore = VectorStore()
                         vstore.delete(doc["source_type"], vector_ids)
 
-                    # data/knowledge/ からも削除
+                    # data/knowledge/ からも削除（パストラバーサル防止）
                     ext_id = doc.get("external_id", "")
                     stype = doc["source_type"]
                     ssys = doc.get("source_system", "local")
                     if ext_id:
-                        kf = Path(app_config.knowledge_path) / stype / ssys / f"{ext_id}.md"
-                        kf.unlink(missing_ok=True)
+                        base = Path(app_config.knowledge_path).resolve()
+                        kf = (base / stype / ssys / f"{ext_id}.md").resolve()
+                        if str(kf).startswith(str(base)):
+                            kf.unlink(missing_ok=True)
 
                     # data/raw/ からも削除
-                    storage = LocalStorage(app_config.raw_storage_path)
-                    storage.delete(f"{stype}/{ext_id}.md")
+                    if ext_id and ".." not in ext_id:
+                        storage = LocalStorage(app_config.raw_storage_path)
+                        storage.delete(f"{stype}/{ext_id}.md")
 
                     st.success(f"削除しました: {doc['title']}")
                     st.cache_data.clear()

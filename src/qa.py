@@ -1,10 +1,13 @@
 """ナレッジQAエンジン。ユーザーの質問に対し、過去ナレッジを検索しLLMが回答を生成する。"""
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from .config import config
 from .retriever import Retriever
+
+logger = logging.getLogger(__name__)
 
 QA_SYSTEM_PROMPT = """\
 あなたはインフラ運用ナレッジに基づいて質問に回答する専門家です。
@@ -162,7 +165,7 @@ class KnowledgeQA:
                 )
                 all_hits.extend(hits)
             except Exception:
-                pass
+                logger.warning("[qa] %s コレクションの検索に失敗", stype)
 
         # 距離でソートし、ドキュメント単位で重複排除
         all_hits.sort(key=lambda x: x.get("distance", float("inf")))
